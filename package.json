@@ -1,0 +1,7 @@
+{
+  "name": "tempt-fit",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build/build.mjs app/" },
+  "devDependencies": { "esbuild": "^0.24.0", "@supabase/supabase-js": "2.45.4", "pg": "^8.13.0", "react": "18.3.1", "react-dom": "18.3.1" }
+}
