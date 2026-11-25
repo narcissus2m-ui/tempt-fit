@@ -1996,6 +1996,7 @@ const dayOf = (d) => iso(d);
 const atOf = (date, time) => new Date(`${date}T${time}:00`);
 const addDays = (date, n) => { const x = new Date(date + "T00:00"); x.setDate(x.getDate() + n); return iso(x); };
 const mondayOf = (date) => { const x = new Date(date + "T00:00"); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return iso(x); };
+const wkEnd = (date) => { const k = new Date(date + "T00:00").getDay(); return k === 0 ? " sun" : k === 6 ? " sat" : ""; };
 const mdText = (date) => `${+date.slice(5, 7)}.${+date.slice(8)}`;
 const wdOf = (date) => WD[new Date(date + "T00:00").getDay()];
 const schEnd = (s) => new Date(s.at.getTime() + s.minutes * 6e4);
@@ -2089,7 +2090,7 @@ function ScheduleTab() {
   return (
     <div className="stack">
       {pending.length > 0 && <RequestList list={pending} />}
-      <Card title={title} right={<Counts c={countIn(sch, asg, range[0], range[1])} />}>
+      <Card title={title} tone="calcard" right={<Counts c={countIn(sch, asg, range[0], range[1])} />}>
         <div className="calbar">
           <Seg value={view} options={[["day", "일간"], ["week", "주간"], ["month", "월간"]]} onChange={setView} small />
           <div className="row nowrap">
@@ -2128,7 +2129,7 @@ function TimeGrid({ days, sch, asg, onTap, onOpen, onDay }) {
       <div className="tg-head">
         <span className="tg-gut" />
         {days.map((d) => { const due = asg.filter((a) => a.dueOn === d); return (
-          <button type="button" key={d} className={"tg-dh" + (d === today ? " today" : "")} onClick={() => onDay && onDay(d)} disabled={!onDay} data-day={d}>
+          <button type="button" key={d} className={"tg-dh" + (d === today ? " today" : "") + wkEnd(d)} onClick={() => onDay && onDay(d)} disabled={!onDay} data-day={d}>
             {week ? <><b>{WD_MON[(new Date(d + "T00:00").getDay() + 6) % 7]}</b><span>{+d.slice(8)}</span></> : <b>{mdText(d)} {wdOf(d)}</b>}
             {due.length > 0 && <i className="tg-task" title="과제 기한">과제 {due.length}</i>}
           </button>); })}
@@ -2136,7 +2137,7 @@ function TimeGrid({ days, sch, asg, onTap, onOpen, onDay }) {
       <div className="tg-body" style={{ height: hours.length * HOUR_PX }}>
         <div className="tg-gut">{hours.map((h) => <span key={h} style={{ top: (h - DAY_START) * HOUR_PX }}>{pad2(h)}</span>)}<span style={{ top: hours.length * HOUR_PX }}>00</span></div>
         {days.map((d) => (
-          <div key={d} className="tg-col" data-col={d}>
+          <div key={d} className={"tg-col" + (week ? wkEnd(d) : "") + (d === today && week ? " today" : "")} data-col={d}>
             {hours.map((h) => [0, 30].map((mm) => { const t = `${pad2(h)}:${mm ? "30" : "00"}`; return (
               <button type="button" key={t} className={"tg-slot" + (mm ? " half" : "")} style={{ top: (h - DAY_START) * HOUR_PX + (mm ? HOUR_PX / 2 : 0), height: HOUR_PX / 2 }}
                 data-slot={`${d} ${t}`} aria-label={`${mdText(d)} ${t} ${isMem ? "수업 요청" : "일정 잡기"}`} disabled={busy(d, t)} onClick={() => onTap(d, t)} />); }))}
@@ -2171,12 +2172,12 @@ function MonthGrid({ ym, sch, asg, onDay, pick, picked }) {
     <div className={"mgrid" + (pick ? " pick" : "") + (isMem ? "" : " byname")} id={pick ? "bulk-cal" : "cal-month"}>
       {WD_MON.map((w, i) => <div key={w} className={"cal-wd" + (i === 6 ? " sun" : i === 5 ? " sat" : "")}>{w}</div>)}
       {cells.map((c, i) => {
-        if (!c) return <div key={"e" + i} />;
+        if (!c) return <div key={"e" + i} className="mblank" />;
         const ss = sch.filter((s) => dayOf(s.at) === c && s.status !== "canceled").sort((a, b) => a.at - b.at);
         const due = asg.filter((a) => a.dueOn === c).length;
         const pk = picked && picked[c];
         return (
-          <button type="button" key={c} data-date={c} className={"mcell" + (c === today ? " today" : "") + (ss.length ? " has" : "") + (pk ? " on" : "") + (pick && c < today ? " past" : "")}
+          <button type="button" key={c} data-date={c} className={"mcell" + wkEnd(c) + (c === today ? " today" : "") + (ss.length ? " has" : "") + (pk ? " on" : "") + (pick && c < today ? " past" : "")}
             onClick={() => onDay(c)} aria-pressed={pick ? !!pk : undefined} aria-label={`${mo}월 ${+c.slice(8)}일, 일정 ${ss.length}개${due ? `, 과제 ${due}개` : ""}`}>
             <span className="n">{+c.slice(8)}</span>
             {pk ? <span className="mev k-pick">{pk.time || "?"}</span> : <>

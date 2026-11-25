@@ -381,54 +381,76 @@ div.pick:not(.kv3>div){display:grid;gap:8px;margin-top:6px}
 .lg{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 8px;vertical-align:-1px}
 .lg:first-child{margin-left:0}
 .lg.k-lesson{background:var(--k-lesson)}.lg.k-bonus{background:var(--k-bonus)}.lg.k-task{background:var(--k-task)}.lg.k-noshow{background:var(--k-noshow)}
+/* 일정 카드 (2026-11-25 다듬기: 둥근 모서리 · 또렷한 칸 · 큰 글자) */
+.card.calcard{border-radius:18px;padding:16px 14px 14px}
+.calbar .seg{border-radius:12px}.calbar .seg button{border-radius:9px}
+.calbar .btn.small{border-radius:10px}
+.cnt{border-radius:999px}
+.legend .lg{border-radius:50%;width:9px;height:9px}
 /* 일간·주간 시간표 */
-.tgrid{--gut:32px;--n:1;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tgrid{--gut:34px;--n:1;--hp:52px;border:1px solid rgba(212,175,95,.24);border-radius:16px;overflow:hidden;background:#111417;box-shadow:0 1px 0 rgba(255,255,255,.03) inset}
 .tgrid.wk{--n:7}
 .tg-head,.tg-body{display:grid;grid-template-columns:var(--gut) repeat(var(--n),minmax(0,1fr))}
-.tg-head{border-bottom:1px solid var(--line);background:#12161A}
-.tg-dh{background:none;border:0;border-left:1px solid var(--line);padding:5px 0 4px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;color:var(--muted);font-size:11px;cursor:pointer}
+.tg-head{border-bottom:1px solid rgba(212,175,95,.3);background:linear-gradient(180deg,#20252A,#181C20)}
+.tg-head>.tg-gut{background:#15191C}
+.tg-dh{background:none;border:0;border-left:1px solid rgba(212,175,95,.14);padding:8px 0 7px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;color:#B9B3A6;font-size:12px;cursor:pointer}
 .tg-dh:disabled{cursor:default;opacity:1}
-.tg-dh b{font-weight:600;color:var(--fg);font-size:12px}
-.tg-dh span{font-family:var(--f-num)}
-.tg-dh.today b,.tg-dh.today span{color:var(--gold-hi)}
-.tg-task{font-style:normal;font-size:9.5px;color:var(--k-task);white-space:nowrap;letter-spacing:-.04em}
-.tg-body{position:relative}
-.tg-body>.tg-gut{position:relative}
-.tg-gut span{position:absolute;right:4px;transform:translateY(-50%);font:10px var(--f-num);color:var(--muted)}
-.tg-gut span:first-child{transform:none}.tg-gut span:last-child{transform:translateY(-100%)}
-.tg-col{position:relative;border-left:1px solid var(--line);min-width:0}
-.tg-slot{position:absolute;left:0;right:0;background:none;border:0;border-top:1px solid rgba(212,175,95,.1);padding:0;cursor:pointer}
-.tg-slot.half{border-top:1px dashed rgba(212,175,95,.05)}
+.tg-dh b{font-weight:700;color:var(--fg);font-size:13px;line-height:1.2}
+.tg-dh span{font:600 13px/1 var(--f-num);color:#D8D1C2;width:26px;height:26px;border-radius:50%;display:grid;place-items:center}
+.tg-dh.sat b,.tg-dh.sat span{color:#9DC0E4}.tg-dh.sun b,.tg-dh.sun span{color:#EE9A90}
+.tg-dh.today b{color:var(--gold-hi)}
+.tg-dh.today span{background:var(--grad);color:var(--on-accent)!important;font-weight:800;box-shadow:0 2px 8px rgba(212,175,95,.35)}
+.tgrid.dy .tg-dh{padding:10px 0 9px}.tgrid.dy .tg-dh b{font-size:14px}
+.tg-task{font-style:normal;font-size:10px;font-weight:600;color:#DCE8F6;background:rgba(143,179,217,.28);border-radius:999px;padding:0 5px;white-space:nowrap;letter-spacing:-.04em}
+.tgrid.wk .tg-task{padding:0 3px;font-size:9.5px}
+@media (max-width:380px){.tgrid.wk .tg-task{padding:0 1px;font-size:9px;letter-spacing:-.07em;border-radius:5px}}
+.tg-body{position:relative;background:repeating-linear-gradient(180deg,rgba(255,255,255,.022) 0 var(--hp),transparent var(--hp) calc(var(--hp)*2))}
+.tg-body>.tg-gut{position:relative;background:#15191C;border-right:1px solid rgba(212,175,95,.2)}
+.tg-gut span{position:absolute;right:5px;transform:translateY(-50%);font:600 11px var(--f-num);color:#ADA799}
+.tg-gut span:first-child{transform:translateY(2px)}.tg-gut span:last-child{transform:translateY(-100%)}
+.tg-col{position:relative;border-left:1px solid rgba(212,175,95,.13);min-width:0}
+.tg-body>.tg-col:nth-child(2){border-left:0}
+.tg-col.sat,.tg-col.sun{background:rgba(255,255,255,.018)}
+.tg-col.today{background:rgba(212,175,95,.06)}
+.tg-slot{position:absolute;left:0;right:0;background:none;border:0;border-top:1px solid rgba(212,175,95,.16);padding:0;cursor:pointer}
+.tg-slot.half{border-top:1px dashed rgba(255,255,255,.06)}
 .tg-slot:active:not(:disabled){background:var(--accent-soft)}
 @media (hover:hover){.tg-slot:hover:not(:disabled){background:var(--accent-soft)}}
 .tg-slot:disabled{cursor:default}
-.tg-ev{position:absolute;left:2px;right:2px;z-index:1;border-radius:4px;border:0;border-left:3px solid var(--k-lesson);background:rgba(212,175,95,.22);color:var(--fg);text-align:left;padding:2px 5px;overflow:hidden;display:flex;flex-direction:column;font-size:12px;line-height:1.3;cursor:pointer}
+.tg-ev{--c:var(--k-lesson);--bg:rgba(212,175,95,.3);position:absolute;left:4px;right:4px;z-index:1;border-radius:10px;border:1px solid color-mix(in srgb,var(--c) 55%,transparent);background:linear-gradient(180deg,var(--bg),color-mix(in srgb,var(--bg) 60%,transparent));box-shadow:inset 3px 0 0 var(--c),0 2px 6px rgba(0,0,0,.35);color:#FFF8EA;text-align:left;padding:4px 7px 4px 9px;overflow:hidden;display:flex;flex-direction:column;gap:1px;font-size:13px;line-height:1.3;cursor:pointer}
 .tg-ev b{font-weight:700;white-space:nowrap}
-.tg-ev span{font-size:11px;color:#CFC8B8;white-space:nowrap}
-.tgrid.wk .tg-ev{left:1px;right:1px;padding:1px 0 1px 2px;border-left-width:2px;font-size:10.5px;letter-spacing:-.04em;align-items:flex-start}
-.tgrid.wk .tg-ev span{font-size:9.5px;font-family:var(--f-num)}
-@media (max-width:380px){.tgrid{--gut:28px}.tgrid.wk .tg-ev{padding-left:1px;font-size:10px}.tgrid.wk .tg-ev span{font-size:8.5px;letter-spacing:-.06em}}
-.tg-ev.k-bonus{border-left-color:var(--k-bonus);background:rgba(127,168,142,.22)}
-.tg-ev.s-done{opacity:.62}
-.tg-ev.s-noshow{border-left-color:var(--k-noshow);background:rgba(180,74,64,.2);right:45%}
+.tg-ev span{font-size:12px;color:#ECE3D0;white-space:nowrap}
+.tgrid.wk .tg-ev{left:2px;right:2px;border-radius:7px;padding:3px 1px 2px 4px;box-shadow:inset 2px 0 0 var(--c),0 1px 4px rgba(0,0,0,.35);font-size:11px;letter-spacing:-.04em;align-items:flex-start}
+.tgrid.wk .tg-ev span{font:600 10px var(--f-num);color:#ECE3D0}
+@media (max-width:380px){.tgrid{--gut:29px}.tg-gut span{font-size:10px;right:3px}.tgrid.wk .tg-dh b{font-size:12px}.tgrid.wk .tg-dh span{width:23px;height:23px;font-size:12px}.tgrid.wk .tg-ev{left:1px;right:1px;padding:2px 0 2px 3px;border-radius:6px;font-size:10px}.tgrid.wk .tg-ev span{font-size:8.5px;letter-spacing:-.06em}}
+.tg-ev.k-bonus{--c:var(--k-bonus);--bg:rgba(127,168,142,.32)}
+.tg-ev.s-done{opacity:.6}
+.tg-ev.s-noshow{--c:var(--k-noshow);--bg:rgba(180,74,64,.3);right:45%}
 .tgrid.wk .tg-ev.s-noshow{right:40%}
 .tg-ev.s-noshow b{text-decoration:line-through}
-.ev-req{font-style:normal;font-size:9.5px;color:#E58C82;white-space:nowrap}
-.tg-now{position:absolute;left:0;right:0;height:2px;background:#E58C82;z-index:2;pointer-events:none}
+.ev-req{font-style:normal;font-size:10px;font-weight:600;color:#F2A79E;white-space:nowrap}
+.tg-now{position:absolute;left:0;right:0;height:2px;background:#E58C82;z-index:2;pointer-events:none;box-shadow:0 0 6px rgba(229,140,130,.6)}
+.tg-now::before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:#E58C82}
 /* 월간 */
-.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
-.mcell{min-width:0;min-height:66px;border:1px solid var(--line);border-radius:5px;background:transparent;display:flex;flex-direction:column;align-items:stretch;gap:1px;padding:3px 2px;cursor:pointer;overflow:hidden;text-align:center}
-.mcell .n{font:12px/1.3 var(--f-num);color:var(--muted)}
-.mcell.today .n{color:var(--gold-hi);font-weight:700;text-decoration:underline;text-underline-offset:3px}
-.mcell.has{background:rgba(212,175,95,.05)}
-.mcell.on{border-color:var(--accent);background:var(--accent-soft)}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.mgrid .cal-wd{font-size:12.5px;font-weight:700;color:#B9B3A6;padding:2px 0 4px}
+.mgrid .cal-wd.sun{color:#EE9A90}.mgrid .cal-wd.sat{color:#9DC0E4}
+.mblank{border-radius:12px;background:rgba(255,255,255,.012)}
+.mcell{min-width:0;min-height:72px;border:0;border-radius:12px;background:linear-gradient(180deg,#1C2125,#171B1E);box-shadow:inset 0 0 0 1px rgba(212,175,95,.13);display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:5px 3px 4px;cursor:pointer;overflow:hidden;text-align:center;color:inherit}
+.mcell .n{font:600 13px/1 var(--f-num);color:#DAD3C4;align-self:center;min-width:22px;height:22px;display:grid;place-items:center;border-radius:999px;margin-bottom:1px}
+.mcell.sat .n{color:#9DC0E4}.mcell.sun .n{color:#EE9A90}
+.mcell.today{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.mcell.today .n{background:var(--grad);color:var(--on-accent);font-weight:800}
+.mcell.has{background:linear-gradient(180deg,#252421,#1B1C1C);box-shadow:inset 0 0 0 1px rgba(212,175,95,.26)}
+.mcell.today.has{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.mcell.on{box-shadow:inset 0 0 0 1.5px var(--accent);background:var(--accent-soft)}
 .mgrid.pick .mcell.past{opacity:.35;cursor:not-allowed}
-.mev{display:block;font-size:9.5px;line-height:1.4;white-space:nowrap;border-radius:2px;padding:0 1px;background:rgba(212,175,95,.2);letter-spacing:-.04em;font-family:var(--f-num)}
+.mev{display:block;font-size:10.5px;font-weight:600;line-height:1.5;white-space:nowrap;border-radius:6px;padding:0 2px;background:rgba(212,175,95,.32);color:#FFF3D6;letter-spacing:-.04em;font-family:var(--f-num)}
 .mev em{font-style:normal;font-family:var(--f-body)}
-.mev.k-bonus{background:rgba(127,168,142,.24)}.mev.s-noshow{background:rgba(180,74,64,.24);text-decoration:line-through}.mev.s-done{opacity:.7}
-.mev.k-task{background:rgba(143,179,217,.2);color:#BFD3EA}.mev.more{background:none;color:var(--muted)}
-.mev.k-pick{background:var(--grad);color:var(--on-accent);font-weight:700}
-@media (max-width:380px){.mev{font-size:8.5px;letter-spacing:-.06em}}
+.mev.k-bonus{background:rgba(127,168,142,.36);color:#E6F4EA}.mev.s-noshow{background:rgba(180,74,64,.36);color:#FFE1DC;text-decoration:line-through}.mev.s-done{opacity:.65}
+.mev.k-task{background:rgba(143,179,217,.32);color:#E3EEF9}.mev.more{background:none;color:#B9B3A6;font-weight:500}
+.mev.k-pick{background:var(--grad);color:var(--on-accent);font-weight:800}
+@media (max-width:380px){.mgrid{gap:4px}.mcell{border-radius:10px;min-height:66px;padding:4px 2px 3px}.mev{font-size:9.5px;letter-spacing:-.06em;border-radius:5px}.mcell .n{font-size:12px;min-width:20px;height:20px}}
 .mev i{font-style:normal}
 @media (max-width:520px){.mgrid.byname .mev i{display:none}.mgrid.byname .mev em{font-family:var(--f-body)}.mgrid:not(.byname) .mev em{display:none}}
 /* 창 */
@@ -2306,6 +2328,10 @@ const mondayOf = (date) => {
   x.setDate(x.getDate() - k);
   return iso(x);
 };
+const wkEnd = (date) => {
+  const k = (/* @__PURE__ */ new Date(date + "T00:00")).getDay();
+  return k === 0 ? " sun" : k === 6 ? " sat" : "";
+};
 const mdText = (date) => `${+date.slice(5, 7)}.${+date.slice(8)}`;
 const wdOf = (date) => WD[(/* @__PURE__ */ new Date(date + "T00:00")).getDay()];
 const schEnd = (s) => new Date(s.at.getTime() + s.minutes * 6e4);
@@ -2423,7 +2449,7 @@ function ScheduleTab() {
   if (bulk) return /* @__PURE__ */ React.createElement(BulkSchedule, { memberId: bulk.memberId, onClose: () => setBulk(null) });
   const isMem = role === "member";
   const myMembers = sortMembers(db.members.filter((m) => !m.mine && (m.trainerIds || []).includes(srv.user.id)));
-  return /* @__PURE__ */ React.createElement("div", { className: "stack" }, pending.length > 0 && /* @__PURE__ */ React.createElement(RequestList, { list: pending }), /* @__PURE__ */ React.createElement(Card, { title, right: /* @__PURE__ */ React.createElement(Counts, { c: countIn(sch, asg, range[0], range[1]) }) }, /* @__PURE__ */ React.createElement("div", { className: "calbar" }, /* @__PURE__ */ React.createElement(Seg, { value: view, options: [["day", "\uC77C\uAC04"], ["week", "\uC8FC\uAC04"], ["month", "\uC6D4\uAC04"]], onChange: setView, small: true }), /* @__PURE__ */ React.createElement("div", { className: "row nowrap" }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", "aria-label": "\uC774\uC804", onClick: () => shift(-1) }, "\u2039"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", onClick: () => setDate(todayISO()) }, "\uC624\uB298"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", "aria-label": "\uB2E4\uC74C", onClick: () => shift(1) }, "\u203A"))), view === "day" && /* @__PURE__ */ React.createElement(TimeGrid, { days: [date], sch, asg, onTap: tap, onOpen: setOpen }), view === "week" && /* @__PURE__ */ React.createElement(TimeGrid, { days: Array.from({ length: 7 }, (_, i) => addDays(range[0], i)), sch, asg, onTap: tap, onOpen: setOpen, onDay: (d) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "stack" }, pending.length > 0 && /* @__PURE__ */ React.createElement(RequestList, { list: pending }), /* @__PURE__ */ React.createElement(Card, { title, tone: "calcard", right: /* @__PURE__ */ React.createElement(Counts, { c: countIn(sch, asg, range[0], range[1]) }) }, /* @__PURE__ */ React.createElement("div", { className: "calbar" }, /* @__PURE__ */ React.createElement(Seg, { value: view, options: [["day", "\uC77C\uAC04"], ["week", "\uC8FC\uAC04"], ["month", "\uC6D4\uAC04"]], onChange: setView, small: true }), /* @__PURE__ */ React.createElement("div", { className: "row nowrap" }, /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", "aria-label": "\uC774\uC804", onClick: () => shift(-1) }, "\u2039"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", onClick: () => setDate(todayISO()) }, "\uC624\uB298"), /* @__PURE__ */ React.createElement("button", { className: "btn ghost small", "aria-label": "\uB2E4\uC74C", onClick: () => shift(1) }, "\u203A"))), view === "day" && /* @__PURE__ */ React.createElement(TimeGrid, { days: [date], sch, asg, onTap: tap, onOpen: setOpen }), view === "week" && /* @__PURE__ */ React.createElement(TimeGrid, { days: Array.from({ length: 7 }, (_, i) => addDays(range[0], i)), sch, asg, onTap: tap, onOpen: setOpen, onDay: (d) => {
     setDate(d);
     setView("day");
   } }), view === "month" && /* @__PURE__ */ React.createElement(MonthGrid, { ym: date.slice(0, 7), sch, asg, onDay: (d) => {
@@ -2450,8 +2476,8 @@ function TimeGrid({ days, sch, asg, onTap, onOpen, onDay }) {
   });
   return /* @__PURE__ */ React.createElement("div", { className: "tgrid" + (week ? " wk" : " dy"), id: week ? "cal-week" : "cal-day" }, /* @__PURE__ */ React.createElement("div", { className: "tg-head" }, /* @__PURE__ */ React.createElement("span", { className: "tg-gut" }), days.map((d) => {
     const due = asg.filter((a) => a.dueOn === d);
-    return /* @__PURE__ */ React.createElement("button", { type: "button", key: d, className: "tg-dh" + (d === today ? " today" : ""), onClick: () => onDay && onDay(d), disabled: !onDay, "data-day": d }, week ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, WD_MON[((/* @__PURE__ */ new Date(d + "T00:00")).getDay() + 6) % 7]), /* @__PURE__ */ React.createElement("span", null, +d.slice(8))) : /* @__PURE__ */ React.createElement("b", null, mdText(d), " ", wdOf(d)), due.length > 0 && /* @__PURE__ */ React.createElement("i", { className: "tg-task", title: "\uACFC\uC81C \uAE30\uD55C" }, "\uACFC\uC81C ", due.length));
-  })), /* @__PURE__ */ React.createElement("div", { className: "tg-body", style: { height: hours.length * HOUR_PX } }, /* @__PURE__ */ React.createElement("div", { className: "tg-gut" }, hours.map((h) => /* @__PURE__ */ React.createElement("span", { key: h, style: { top: (h - DAY_START) * HOUR_PX } }, pad2(h))), /* @__PURE__ */ React.createElement("span", { style: { top: hours.length * HOUR_PX } }, "00")), days.map((d) => /* @__PURE__ */ React.createElement("div", { key: d, className: "tg-col", "data-col": d }, hours.map((h) => [0, 30].map((mm) => {
+    return /* @__PURE__ */ React.createElement("button", { type: "button", key: d, className: "tg-dh" + (d === today ? " today" : "") + wkEnd(d), onClick: () => onDay && onDay(d), disabled: !onDay, "data-day": d }, week ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("b", null, WD_MON[((/* @__PURE__ */ new Date(d + "T00:00")).getDay() + 6) % 7]), /* @__PURE__ */ React.createElement("span", null, +d.slice(8))) : /* @__PURE__ */ React.createElement("b", null, mdText(d), " ", wdOf(d)), due.length > 0 && /* @__PURE__ */ React.createElement("i", { className: "tg-task", title: "\uACFC\uC81C \uAE30\uD55C" }, "\uACFC\uC81C ", due.length));
+  })), /* @__PURE__ */ React.createElement("div", { className: "tg-body", style: { height: hours.length * HOUR_PX } }, /* @__PURE__ */ React.createElement("div", { className: "tg-gut" }, hours.map((h) => /* @__PURE__ */ React.createElement("span", { key: h, style: { top: (h - DAY_START) * HOUR_PX } }, pad2(h))), /* @__PURE__ */ React.createElement("span", { style: { top: hours.length * HOUR_PX } }, "00")), days.map((d) => /* @__PURE__ */ React.createElement("div", { key: d, className: "tg-col" + (week ? wkEnd(d) : "") + (d === today && week ? " today" : ""), "data-col": d }, hours.map((h) => [0, 30].map((mm) => {
     const t = `${pad2(h)}:${mm ? "30" : "00"}`;
     return /* @__PURE__ */ React.createElement(
       "button",
@@ -2498,7 +2524,7 @@ function MonthGrid({ ym, sch, asg, onDay, pick, picked }) {
   const cells = [...Array(lead).fill(null), ...Array.from({ length: n }, (_, i) => `${ym}-${pad2(i + 1)}`)];
   const today = todayISO();
   return /* @__PURE__ */ React.createElement("div", { className: "mgrid" + (pick ? " pick" : "") + (isMem ? "" : " byname"), id: pick ? "bulk-cal" : "cal-month" }, WD_MON.map((w, i) => /* @__PURE__ */ React.createElement("div", { key: w, className: "cal-wd" + (i === 6 ? " sun" : i === 5 ? " sat" : "") }, w)), cells.map((c, i) => {
-    if (!c) return /* @__PURE__ */ React.createElement("div", { key: "e" + i });
+    if (!c) return /* @__PURE__ */ React.createElement("div", { key: "e" + i, className: "mblank" });
     const ss = sch.filter((s) => dayOf(s.at) === c && s.status !== "canceled").sort((a, b) => a.at - b.at);
     const due = asg.filter((a) => a.dueOn === c).length;
     const pk = picked && picked[c];
@@ -2508,7 +2534,7 @@ function MonthGrid({ ym, sch, asg, onDay, pick, picked }) {
         type: "button",
         key: c,
         "data-date": c,
-        className: "mcell" + (c === today ? " today" : "") + (ss.length ? " has" : "") + (pk ? " on" : "") + (pick && c < today ? " past" : ""),
+        className: "mcell" + wkEnd(c) + (c === today ? " today" : "") + (ss.length ? " has" : "") + (pk ? " on" : "") + (pick && c < today ? " past" : ""),
         onClick: () => onDay(c),
         "aria-pressed": pick ? !!pk : void 0,
         "aria-label": `${mo}\uC6D4 ${+c.slice(8)}\uC77C, \uC77C\uC815 ${ss.length}\uAC1C${due ? `, \uACFC\uC81C ${due}\uAC1C` : ""}`
