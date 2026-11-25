@@ -368,8 +368,8 @@ function useStore() { return useContext(Store); }
    저장 원칙은 그대로: 회원 / 인바디 / 운동 세션 3개만 서버 DB에 두고, 나머지는 기기에서 계산.
    모든 수정은 update() 한 곳을 거치므로, 바뀐 행만 골라 서버로 보냅니다(0.7초 모아서). */
 // 서버 주소와 공개(anon) 키. 비워 두면 앱의 [계정 > 서버 설정]에서 넣을 수 있습니다(기기에 기억).
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = ""; // 공개용 anon 키 (접근 제한은 DB 규칙이 담당)
+const SUPABASE_URL = "https://mvwdtdxpyolbszbzosnu.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12d2R0ZHhweW9sYnN6Ynpvc251Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTU1NTUzNDcsImV4cCI6MjExMTEzMTM0N30.DGWuvihY231wxmR3wB36lRYPB9sdffk73-yJzAgfsEg"; // 공개용 anon 키 (접근 제한은 DB 규칙이 담당)
 const CFG_KEY = KEY + ".server", LOCAL_ONLY_KEY = KEY + ".localOnly", ACTIVE_KEY = KEY + ".active", UPLOADED_KEY = KEY + ".uploaded";
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
