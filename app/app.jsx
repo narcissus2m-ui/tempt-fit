@@ -2851,7 +2851,12 @@ function TrainerPlanCard() {
   const q = useMemberQuota();
   const s = subState(srv.profile.sub_until);
   const [open, setOpen] = useState(false), [plan, setPlan] = useState(srv.profile.plan || "standard"), [msg, setMsg] = useState(""), [busy, setBusy] = useState(false);
-  if (!q || srv.master) return null;
+  if (srv.master) return (
+    <Card title="내 구독" right={<span className="pill ok" id="tplan-state">마스터</span>}>
+      <p className="small" id="tplan-line">무제한 등급과 같은 기능 · <span className="nw">구독료 면제</span></p>
+      <p className="small gold">연결된 회원은 구독료가 감면돼요.</p>
+    </Card>);
+  if (!q) return null;
   const ask = async () => { setBusy(true); const { data, error } = await srv.sb.rpc("request_subscription", { p_plan: plan }); setBusy(false); setMsg(error ? errMsg(error) : data === "already" ? "오늘 이미 신청했어요." : "등급 변경을 신청했어요. 마스터가 확인하면 바뀌어요."); };
   return (
     <Card title="내 구독" right={<span className={"pill" + (s.on ? " ok" : "")} id="tplan-state">{q.plan ? q.plan.name : "등급 없음"}</span>}>
