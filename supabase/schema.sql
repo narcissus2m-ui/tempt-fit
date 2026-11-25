@@ -22,6 +22,8 @@ create table if not exists public.profiles (
   sub_until date,                                 -- 회원 구독 만료일 (결제 연동 전에는 마스터가 지정)
   created_at timestamptz not null default now()
 );
+-- 강사 구독 등급: basic 5명 / standard 10명 / pro 20명 / unlimited 무제한 (무제한 강사와 연결된 회원은 회원 구독료 감면)
+alter table public.profiles add column if not exists plan text check (plan in ('basic', 'standard', 'pro', 'unlimited'));
 
 create or replace function public.is_master() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -63,7 +65,7 @@ language plpgsql security definer set search_path = public as $$
 begin
   if coalesce(current_setting('app.admin', true), '') <> '1' and auth.uid() is not null then
     new.id := old.id; new.role := old.role; new.is_master := old.is_master; new.created_at := old.created_at;
-    if not public.is_master() then new.sub_until := old.sub_until; end if;
+    if not public.is_master() then new.sub_until := old.sub_until; new.plan := old.plan; end if;
   end if;
   return new;
 end $$;
@@ -601,24 +603,55 @@ language sql security definer set search_path = public as $$
   update public.notifications set read = true where user_id = auth.uid() and not read and (upto is null or id <= upto);
 $$;
 
--- 마스터: 구독 만료일 지정 (결제 연동 전 임시)
-create or replace function public.set_subscription(uid uuid, until date) returns void
+-- 마스터: 구독 만료일·강사 등급 지정 (결제 연동 전 임시). p_plan이 null이면 등급은 그대로
+drop function if exists public.set_subscription(uuid, date);
+create or replace function public.set_subscription(uid uuid, until date, p_plan text default null) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   if not public.is_master() then raise exception 'master_only'; end if;
-  update public.profiles set sub_until = until where id = uid;
+  update public.profiles set sub_until = until, plan = coalesce(p_plan, plan) where id = uid;
 end $$;
 
--- 구독 신청 (결제 연동 전): 마스터들에게 알림. 하루 한 번만
-create or replace function public.request_subscription() returns text
+-- 강사 등급별 회원 수 한도 (null = 무제한)
+create or replace function public.plan_limit(p text) returns int
+language sql immutable as $$
+  select case p when 'basic' then 5 when 'standard' then 10 when 'pro' then 20 when 'unlimited' then null else 0 end;
+$$;
+-- 강사가 회원을 새로 등록할 때 등급 한도 확인 (마스터는 제한 없음)
+create or replace function public.member_limit_check() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare me public.profiles;
+declare pr public.profiles; lim int;
+begin
+  if new.trainer_id is null or new.user_id is not null then return new; end if;
+  select * into pr from public.profiles where id = new.trainer_id;
+  if pr.is_master then return new; end if;
+  lim := public.plan_limit(pr.plan);
+  if lim is not null and (select count(*) from public.member_trainers t where t.trainer_id = new.trainer_id) >= lim then
+    raise exception 'member_limit';
+  end if;
+  return new;
+end $$;
+drop trigger if exists members_limit on public.members;
+create trigger members_limit before insert on public.members for each row execute function public.member_limit_check();
+
+-- 회원 구독료 감면: 구독 중인 무제한 등급 강사와 연결된 동안 (결제 붙일 때 사용)
+create or replace function public.member_fee_waived(uid uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.members m join public.member_trainers t on t.member_id = m.id join public.profiles p on p.id = t.trainer_id
+    where m.user_id = uid and (uid = auth.uid() or public.is_master()) and p.plan = 'unlimited' and p.sub_until >= (now() at time zone 'Asia/Seoul')::date);
+$$;
+
+-- 구독 신청 (결제 연동 전): 마스터들에게 알림. 하루 한 번만
+drop function if exists public.request_subscription();
+create or replace function public.request_subscription(p_plan text default null) returns text
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles; pname text := case p_plan when 'basic' then '베이직' when 'standard' then '스탠다드' when 'pro' then '프로' when 'unlimited' then '무제한' else null end;
 begin
   select * into me from public.profiles where id = auth.uid();
   if me.id is null then raise exception 'not_signed_in'; end if;
-  if exists (select 1 from public.notifications n where n.kind = 'subreq' and n.ref = me.id::text and n.created_at > now() - interval '1 day') then return 'already'; end if;
+  if exists (select 1 from public.notifications n where n.kind = 'subreq' and n.ref = me.id::text and n.created_at > now() - interval '1 day' and n.body like '%' || coalesce(pname, '') || '%') then return 'already'; end if;
   insert into public.notifications (user_id, kind, title, body, ref)
-    select p.id, 'subreq', '구독 신청', coalesce(nullif(me.display_name, ''), '이름 없음') || ' ' || case when me.role = 'trainer' then '강사' else '회원' end || '가 구독을 신청했어요.', me.id::text
+    select p.id, 'subreq', '구독 신청', coalesce(nullif(me.display_name, ''), '이름 없음') || ' ' || case when me.role = 'trainer' then '강사' else '회원' end || '가 ' || coalesce(pname || ' 등급 ', '') || '구독을 신청했어요.', me.id::text
     from public.profiles p where p.is_master and p.id <> me.id;
   return 'sent';
 end $$;
@@ -719,7 +752,7 @@ create policy notifications_delete on public.notifications for delete to authent
 -- 함수 실행 권한: 로그인한 사람만
 do $$ declare f text; begin
   foreach f in array array['claim_member(text)', 'unlink_trainer(text, uuid)', 'set_fav_exercises(text[])', 'decide_request(uuid, boolean, timestamptz, integer)',
-    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date)', 'request_subscription()'] loop
+    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date, text)', 'request_subscription(text)', 'member_fee_waived(uuid)'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
