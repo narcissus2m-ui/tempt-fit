@@ -57,8 +57,9 @@ async function signup(p, role, name, email) {
   await p.click(`.authwrap .seg button:has-text("${role}")`);
   await p.fill("#a-name", name); await p.fill("#a-email", email); await p.fill("#a-pw", "secret12");
   await p.click("button[type=submit]");
-  await p.waitForSelector("nav.nav");
+  await p.waitForSelector("nav.nav, #trainer-lock");
 }
+const asRoleCommit = async (sub, sql, a) => { const c = await pool.connect(); try { await c.query("begin"); await c.query("set local role authenticated"); await c.query("select set_config('request.jwt.claim.sub', $1, true)", [sub]); const r = await c.query(sql, a); await c.query("commit"); return r; } finally { c.release(); } };
 async function refresh(p) {
   while (await p.$(".modal-bg")) { await p.keyboard.press("Escape"); await wait(150); }
   await p.click('button[aria-label="계정과 저장 상태"]');
@@ -103,6 +104,17 @@ async function overflowCheck(p, tag) {
   await signup(T, "강사", "김코치", "t1@test.kr");
   const tid = (await q1("select id from profiles where display_name='김코치'"))[0].id;
   ok((await q1("select role from profiles where id=$1", [tid]))[0].role === "trainer", "강사 가입 → 강사 계정");
+  // 구독 전 강사: 잠금 화면 + 서버도 막힘
+  ok(await T.$("#trainer-lock") && !(await T.$("nav.nav")), "구독 전 강사: 자물쇠 잠금 화면 (탭 없음)");
+  ok(!!(await asRole(tid, "insert into public.members(id, name, trainer_id) values ('lockx', 'x', $1)", [tid])).error, "서버: 구독 전 강사는 회원 등록 불가");
+  await overflowCheck(T, "440px 강사 잠금 화면"); await shot(T, "t-lock");
+  await T.click("#lock-sub"); await T.waitForSelector("#lock-msg");
+  ok((await T.textContent("#lock-msg")).includes("구독 신청을 보냈어요"), "구독 신청하기 버튼");
+  await T.click("#lock-check"); await wait(500);
+  ok(await T.$("#trainer-lock"), "구독 전에는 계속 잠김");
+  await q1("update profiles set sub_until = current_date + 30 where id=$1", [tid]); // 실서버에서는 마스터가 +1개월
+  await T.click("#lock-check"); await T.waitForSelector("nav.nav");
+  ok(!(await T.$("#trainer-lock")), "구독되면 잠금이 풀림");
   ok((await T.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,회원,운동,과제,분석", "강사 탭: 홈·일정·회원·운동·과제·분석");
   ok(await T.textContent(".wm") === "TEMPTFIT", "머리글 이름 TEMPT FIT");
   ok((await T.title()) === "TEMPT FIT", "문서 제목 TEMPT FIT");
@@ -328,6 +340,10 @@ async function overflowCheck(p, tag) {
   await tab(T2, "master"); await T2.waitForSelector('#ms-members [data-user="박회원"]');
   await T2.click('#ms-members [data-user="박회원"] >> text=+1개월'); await wait(900);
   ok(!!(await q1("select sub_until from profiles where id=$1", [muid]))[0].sub_until, "마스터: 회원 구독 +1개월");
+  ok(+(await asRoleCommit(tid, "select count(*) from (select public.request_subscription()) x")).rows[0].count === 1 && (await count(`notifications where user_id='${t2}' and kind='subreq'`)) === 1, "강사 구독 신청 → 마스터에게 알림");
+  ok((await asRoleCommit(tid, "select public.request_subscription() v")).rows[0].v === "already", "구독 신청은 하루 한 번");
+  await refresh(T2); await tab(T2, "master");
+  ok(await T2.$('#ms-trainers [data-user="코치K"] >> text=+1개월'), "마스터: 강사 구독도 +1개월로 지정");
   await shot(T2, "master");
   await refresh(M); await M.click('button[aria-label="계정과 저장 상태"]'); await M.waitForSelector("#sub-state");
   ok((await M.textContent("#sub-state")) === "이용 중", "회원 계정 화면: 구독 이용 중");

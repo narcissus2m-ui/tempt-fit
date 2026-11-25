@@ -32,6 +32,13 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select p.role = 'trainer' or p.is_master from public.profiles p where p.id = auth.uid()), false);
 $$;
 
+-- 구독 중인 강사 (마스터는 언제나). 구독 전 강사는 가입만 되고 회원 등록·수업·일정·과제를 못 함
+create or replace function public.is_active_trainer() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select p.is_master or (p.role = 'trainer' and p.sub_until >= (now() at time zone 'Asia/Seoul')::date)
+    from public.profiles p where p.id = auth.uid()), false);
+$$;
+
 -- 가입하면 프로필 자동 생성 (가입 화면에서 고른 역할: 강사 또는 회원)
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -402,7 +409,7 @@ declare r public.requests; sid text;
 begin
   select * into r from public.requests where id = rid for update;
   if r.id is null or r.status <> 'pending' then raise exception 'not_pending'; end if;
-  if not (r.trainer_id = auth.uid() or public.is_master()) then raise exception 'not_allowed'; end if;
+  if not ((r.trainer_id = auth.uid() and public.is_active_trainer()) or public.is_master()) then raise exception 'not_allowed'; end if;
   perform set_config('app.admin', '1', true);
   update public.requests set status = case when ok then 'approved' else 'rejected' end, decided_at = now() where id = rid;
   if ok and r.kind = 'book' then
@@ -540,7 +547,7 @@ create or replace function public.bulk_schedule(rows jsonb) returns int
 language plpgsql security definer set search_path = public as $$
 declare x jsonb; n int := 0; mid text;
 begin
-  if not public.is_trainer() then raise exception 'not_allowed'; end if;
+  if not public.is_active_trainer() then raise exception 'not_allowed'; end if;
   perform set_config('app.bulk', '1', true);
   for x in select * from jsonb_array_elements(rows) loop
     mid := x->>'member_id';
@@ -602,6 +609,20 @@ begin
   update public.profiles set sub_until = until where id = uid;
 end $$;
 
+-- 구독 신청 (결제 연동 전): 마스터들에게 알림. 하루 한 번만
+create or replace function public.request_subscription() returns text
+language plpgsql security definer set search_path = public as $$
+declare me public.profiles;
+begin
+  select * into me from public.profiles where id = auth.uid();
+  if me.id is null then raise exception 'not_signed_in'; end if;
+  if exists (select 1 from public.notifications n where n.kind = 'subreq' and n.ref = me.id::text and n.created_at > now() - interval '1 day') then return 'already'; end if;
+  insert into public.notifications (user_id, kind, title, body, ref)
+    select p.id, 'subreq', '구독 신청', coalesce(nullif(me.display_name, ''), '이름 없음') || ' ' || case when me.role = 'trainer' then '강사' else '회원' end || '가 구독을 신청했어요.', me.id::text
+    from public.profiles p where p.is_master and p.id <> me.id;
+  return 'sent';
+end $$;
+
 -- ───────── 10. 접근 규칙 (Row Level Security) ─────────
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
@@ -621,7 +642,7 @@ create policy members_select on public.members for select to authenticated using
 drop policy if exists members_insert on public.members;
 create policy members_insert on public.members for insert to authenticated with check (
   (user_id = auth.uid() and trainer_id is null and not exists (select 1 from public.members m where m.user_id = auth.uid()))
-  or (user_id is null and trainer_id = auth.uid() and public.is_trainer()));
+  or (user_id is null and trainer_id = auth.uid() and public.is_active_trainer()));
 drop policy if exists members_update on public.members;
 create policy members_update on public.members for update to authenticated using (public.can_access_member(id)) with check (public.can_access_member(id));
 drop policy if exists members_delete on public.members;
@@ -671,9 +692,9 @@ do $$ declare t text; begin
     execute format('drop policy if exists %1$s_select on public.%1$s', t);
     execute format('create policy %1$s_select on public.%1$s for select to authenticated using (public.can_access_member(member_id))', t);
     execute format('drop policy if exists %1$s_insert on public.%1$s', t);
-    execute format('create policy %1$s_insert on public.%1$s for insert to authenticated with check (public.is_master() or (public.is_trainer() and public.is_linked_trainer(member_id)))', t);
+    execute format('create policy %1$s_insert on public.%1$s for insert to authenticated with check (public.is_master() or (public.is_active_trainer() and public.is_linked_trainer(member_id)))', t);
     execute format('drop policy if exists %1$s_update on public.%1$s', t);
-    execute format('create policy %1$s_update on public.%1$s for update to authenticated using (public.is_master() or (trainer_id = auth.uid() and public.is_linked_trainer(member_id))) with check (public.is_master() or public.is_linked_trainer(member_id))', t);
+    execute format('create policy %1$s_update on public.%1$s for update to authenticated using (public.is_master() or (trainer_id = auth.uid() and public.is_active_trainer() and public.is_linked_trainer(member_id))) with check (public.is_master() or public.is_linked_trainer(member_id))', t);
     execute format('drop policy if exists %1$s_delete on public.%1$s', t);
     execute format('create policy %1$s_delete on public.%1$s for delete to authenticated using (public.is_master() or (trainer_id = auth.uid() and public.is_linked_trainer(member_id)))', t);
   end loop;
@@ -698,7 +719,7 @@ create policy notifications_delete on public.notifications for delete to authent
 -- 함수 실행 권한: 로그인한 사람만
 do $$ declare f text; begin
   foreach f in array array['claim_member(text)', 'unlink_trainer(text, uuid)', 'set_fav_exercises(text[])', 'decide_request(uuid, boolean, timestamptz, integer)',
-    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date)'] loop
+    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date)', 'request_subscription()'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;

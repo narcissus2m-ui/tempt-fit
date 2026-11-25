@@ -481,7 +481,7 @@ async function loadServer(sb, user) {
   const p0 = profs.find((p) => p.id === user.id) || { id: user.id, display_name: meta.display_name || "", role: meta.role === "trainer" ? "trainer" : "member" };
   const master = !!p0.is_master;
   const profile = { ...p0, role: p0.role === "trainer" || master ? "trainer" : "member" };
-  const people = Object.fromEntries(profs.map((p) => [p.id, { name: tNameOf(p), realName: p.display_name || "", role: p.role === "trainer" || p.is_master ? "trainer" : "member", tprofile: p.tprofile || {}, subUntil: p.sub_until || null }]));
+  const people = Object.fromEntries(profs.map((p) => [p.id, { name: tNameOf(p), realName: p.display_name || "", role: p.role === "trainer" || p.is_master ? "trainer" : "member", master: !!p.is_master, tprofile: p.tprofile || {}, subUntil: p.sub_until || null }]));
   const staff = profs.filter((p) => p.role === "trainer" || p.is_master).map((p) => ({ id: p.id, name: tNameOf(p), role: "trainer", tprofile: p.tprofile || {} }));
   const members = mem.map((r) => fromMemberRow(r, user.id, links));
   const mids = new Set(members.map((m) => m.id));
@@ -2721,7 +2721,12 @@ function MasterTab() {
   return (
     <div className="stack">
       <Card title={`강사 · ${trainers.length}명`}>
-        <ul className="clist" id="ms-trainers">{trainers.map((t) => <li key={t.id}><span><b>{t.name}</b> <span className="small muted">회원 {cnt(t.id)}명 · 이번 달 수업 {(db.schedules || []).filter((s) => s.trainerId === t.id && s.kind === "lesson" && s.status !== "canceled" && dayOf(s.at).startsWith(todayISO().slice(0, 7))).length}회</span></span></li>)}</ul>
+        <ul className="clist" id="ms-trainers">{trainers.map((t) => { const s = subState(t.subUntil); return <li key={t.id} data-user={t.name}>
+          <span><b>{t.name}</b> <span className="small muted">회원 {cnt(t.id)}명 · 이번 달 수업 {(db.schedules || []).filter((x) => x.trainerId === t.id && x.kind === "lesson" && x.status !== "canceled" && dayOf(x.at).startsWith(todayISO().slice(0, 7))).length}회</span>
+            {" "}{t.master ? <span className="small gold">마스터</span> : <span className={"small" + (s.on ? " gold" : " warnc")}>{s.on ? s.label : "잠김 · " + s.label}</span>}</span>
+          {!t.master && <span className="row nowrap"><button className="btn small" disabled={busy} onClick={() => setSub(t.id, plusMonth(t.subUntil))}>+1개월</button>{t.subUntil && <button className="btn ghost small" disabled={busy} onClick={() => setSub(t.id, null)}>해제</button>}</span>}
+        </li>; })}</ul>
+        <p className="small muted">구독하지 않은 강사는 가입만 되고, 잠금 화면에서 구독 신청을 보내요. +1개월을 누르면 바로 열려요.</p>
       </Card>
       <Card title={`회원 계정 · ${members.length}명`} right={<span className="muted small">구독 월 500원</span>}>
         <input className="search" type="search" placeholder="이름 검색" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -2758,6 +2763,40 @@ function TodayCard({ go }) {
   );
 }
 
+
+/* 강사 잠금: 구독 전에는 이 화면만 (결제 연동 전에는 구독 신청 → 마스터가 열어 줌) */
+function TrainerLock() {
+  const { srv } = useStore();
+  const [busy, setBusy] = useState(false), [msg, setMsg] = useState("");
+  const s = subState(srv.profile.sub_until);
+  const ask = async () => {
+    setBusy(true); setMsg("");
+    const { data, error } = await srv.sb.rpc("request_subscription");
+    setBusy(false);
+    setMsg(error ? errMsg(error) : data === "already" ? "오늘 이미 신청했어요. 마스터가 확인하면 바로 열려요." : "구독 신청을 보냈어요. 마스터가 확인하면 바로 열려요.");
+  };
+  const check = async () => { setBusy(true); await srv.reload(); setBusy(false); setMsg("아직 잠겨 있어요. 열리면 이 화면이 바로 사라져요."); };
+  return (
+    <div className="stack lockwrap" id="trainer-lock">
+      <div className="lockicon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" /></svg></div>
+      <Card title="강사 구독이 필요해요" tone="feature">
+        <p className="small">가입은 끝났어요. 구독하면 TEMPT FIT 강사 기능을 모두 쓸 수 있어요.</p>
+        <ul className="lockfeat small">
+          <li>회원 등록 · 초대 코드로 회원과 연결</li>
+          <li>수업 개설 · 세션 자동 소진</li>
+          <li>일정 일간·주간·월간 · 여러 날 한꺼번에 잡기</li>
+          <li>회원 요청 승인 · 과제 주기와 도장</li>
+        </ul>
+        {srv.profile.sub_until && !s.on && <p className="small warnc">구독이 {s.label.replace("만료 · ", "")}에 끝났어요.</p>}
+        <button className="btn wide" id="lock-sub" disabled={busy} onClick={ask}>{busy ? "잠시만요…" : "구독 신청하기"}</button>
+        {msg && <p className="small" id="lock-msg" role="status">{msg}</p>}
+        <p className="small muted">결제 기능은 준비 중이에요. 지금은 신청하면 마스터가 확인하고 열어 드려요.</p>
+        <button className="btn ghost small" id="lock-check" disabled={busy} onClick={check}>열렸는지 확인</button>
+      </Card>
+      <p className="small muted center">강사 프로필은 지금도 오른쪽 위 사람 아이콘에서 쓸 수 있어요.</p>
+    </div>
+  );
+}
 
 /* 회원: 구독 상태 (월 500원, 결제 연동 전) */
 function SubCard() {
@@ -2975,10 +3014,12 @@ function App() {
   const tabs = mode !== "server" ? TABS_LOCAL : role === "member" ? TABS_MEMBER : srv.master ? [...TABS_TRAINER, MASTER_TAB] : TABS_TRAINER;
   const cur = tabs.some(([k]) => k === tab) ? tab : "home";
   const unread = notes.filter((n) => !n.read).length;
+  const locked = !!srv && role === "trainer" && !srv.master && !subState(profile.sub_until).on;
   const openNote = (n) => {
     setBell(false);
     if (n.kind === "schedule" || n.kind === "decided" || n.kind === "request") { const s = n.ref && (db.schedules || []).find((x) => x.id === n.ref); tabCmd("tempt-cal", s ? { date: dayOf(s.at), view: "day", open: { id: s.id } } : {}); go("schedule"); }
     else if (n.kind === "assignment" || n.kind === "submitted") { tabCmd("tempt-assign", n.ref && (db.assignments || []).some((a) => a.id === n.ref) ? { open: n.ref } : {}); go("assign"); }
+    else if (n.kind === "subreq") go("master");
     else if (n.kind === "link") { if (role === "member") go("trainers"); else if (n.ref && db.members.some((m) => m.id === n.ref)) ctx.openMember(n.ref); else go("member", "list"); }
   };
 
@@ -2995,6 +3036,7 @@ function App() {
   </>;
 
   const body = () => {
+    if (locked) return <TrainerLock />;
     // 회원 기록이 없어도 열리는 탭
     if (srv) {
       if (cur === "schedule") return <ScheduleTab />;
@@ -3031,17 +3073,17 @@ function App() {
             <button className={"icon acct" + dot} aria-label="계정과 저장 상태" onClick={() => setAcct(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.member} /></svg></button>
           </div>
         </header>
-        {adding && role !== "member" && <div className="addbar"><input id="new-name" placeholder="새 회원 이름" autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addMember()} /><button className="btn" onClick={addMember}>추가</button><button className="btn ghost small" onClick={() => { setAdding(false); setNewName(""); }}>취소</button></div>}
+        {adding && role !== "member" && !locked && <div className="addbar"><input id="new-name" placeholder="새 회원 이름" autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addMember()} /><button className="btn" onClick={addMember}>추가</button><button className="btn ghost small" onClick={() => { setAdding(false); setNewName(""); }}>취소</button></div>}
         {mode === "local" && <div className="notice">지금은 이 기기에만 저장됩니다. 일정·과제·강사 연결은 <button className="linkbtn" onClick={() => (cfg ? goLogin() : setAcct(true))}>{cfg ? "로그인" : "서버 연결"}</button>하면 쓸 수 있어요.{db.sample && <> 아래는 예시 회원 2명의 샘플입니다. <button className="linkbtn" onClick={() => setDB({ sample: false, activeId: null, members: [], measurements: [], sessions: [], exercises: db.exercises || DEFAULT_EXERCISES })}>모두 비우기</button></>}</div>}
         {mode === "server" && sync.state === "error" && <div className="notice bad">{sync.msg} <button className="linkbtn" onClick={flush}>다시 저장</button></div>}
         {toast && <div className="toast" role="status">{toast}</div>}
         <main className="main">{body()}
           <p className="foot">이 앱의 수치는 공인 공식에 따른 추정치이며 의료적 진단을 대신하지 않습니다. <button className="linkbtn" id="foot-refs" onClick={() => setRefs({ ids: null })}>근거·데이터 구조 보기</button>{mode === "local" && <> <button className="linkbtn" onClick={() => { setDB(sampleDB()); }}>샘플 데이터 다시 불러오기</button></>}</p>
         </main>
-        <nav className={"nav n" + tabs.length} style={{ gridTemplateColumns: `repeat(${tabs.length},1fr)` }}>
+        {!locked && <nav className={"nav n" + tabs.length} style={{ gridTemplateColumns: `repeat(${tabs.length},1fr)` }}>
           {tabs.map(([k, l]) => <button key={k} data-tab={k} className={cur === k ? "on" : ""} onClick={() => go(k, "list")} aria-current={cur === k ? "page" : undefined}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[k]} /></svg><span>{l}</span></button>)}
-        </nav>
+        </nav>}
         {refs && <Sheet ids={refs.ids} onClose={() => setRefs(null)} />}
         {bell && srv && <NotifySheet notes={notes} onClose={() => setBell(false)} onGo={openNote} />}
         {acct && <AccountSheet onClose={() => setAcct(false)} cfg={cfg} saveCfg={saveCfg} srv={srv} sync={sync} flush={flush} local={mode === "local"} goLogin={goLogin} logout={logout} localData={localData} importLocal={importLocal} />}
