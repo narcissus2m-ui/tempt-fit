@@ -65,7 +65,12 @@ async function refresh(p) {
   await p.click('button[aria-label="계정과 저장 상태"]');
   await p.click("text=서버에서 새로고침"); await wait(700); await p.click(".sheet >> text=닫기"); await wait(300);
 }
-const tab = async (p, k) => { await p.click(`nav [data-tab=${k}]`); await wait(250); };
+const SUB = { assign: ["schedule", "과제"], trainers: ["member", "내 강사"] };
+const tab = async (p, k) => {
+  if (SUB[k]) { await p.click(`nav [data-tab=${SUB[k][0]}]`); await wait(250); await p.click(`#sub-${SUB[k][0]} > .seg button:has-text("${SUB[k][1]}")`); }
+  else await p.click(`nav [data-tab=${k}]`);
+  await wait(250);
+};
 const shot = (p, n) => p.screenshot({ path: `${SHOTS}/${n}.png` });
 // 화면 넘침 검사: 가로 스크롤, 글자가 상자 밖으로 나감
 async function overflowCheck(p, tag) {
@@ -118,7 +123,7 @@ async function overflowCheck(p, tag) {
   await q1("update profiles set sub_until = current_date + 30, plan = 'basic' where id=$1", [tid]); // 실서버에서는 마스터가 등급 + 1개월
   await T.click("#lock-check"); await T.waitForSelector("nav.nav");
   ok(!(await T.$("#trainer-lock")), "구독되면 잠금이 풀림");
-  ok((await T.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,회원,운동,과제,영양,분석", "강사 탭: 홈·일정·회원·운동·과제·영양·분석");
+  ok((await T.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,회원,운동,영양,분석", "강사 탭: 홈·일정(캘린더·과제)·회원·운동·영양·분석");
   ok(await T.textContent(".wm") === "TEMPTFIT", "머리글 이름 TEMPT FIT");
   ok((await T.title()) === "TEMPT FIT", "문서 제목 TEMPT FIT");
   ok(!(await T.content()).includes("선생님"), "화면에 '선생님' 표현 없음");
@@ -201,7 +206,7 @@ async function overflowCheck(p, tag) {
   const M = await open(browser, "member");
   await signup(M, "회원", "박회원", "m1@test.kr");
   await M.waitForSelector("#claim-code");
-  ok((await M.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,과제,강사,운동,영양,분석,내 정보", "회원 탭: 홈·일정·과제·강사·운동·영양·분석·내 정보");
+  ok((await M.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,운동,영양,분석,내 정보", "회원 탭: 홈·일정(캘린더·과제)·운동·영양·분석·내 정보(내 강사)");
   await shot(M, "m-start");
   await M.fill("#claim-code", code); await M.click("#claim-go"); await wait(1200);
   const muid = (await q1("select id from profiles where display_name='박회원'"))[0].id;
@@ -374,7 +379,7 @@ async function overflowCheck(p, tag) {
   await shot(M, "m-account"); await M.click(".sheet >> text=닫기");
 
   // ── 화면 검사: 440px(아이폰 17 Pro Max) · 320px, 강사·회원·마스터
-  const views = [["T", T, ["home", "schedule", "member", "workout", "assign", "nutrition", "stats"]], ["M", M, ["home", "schedule", "assign", "trainers", "workout", "nutrition", "stats", "member"]], ["MS", T2, ["master", "schedule"]]];
+  const views = [["T", T, ["home", "schedule", "assign", "member", "workout", "nutrition", "stats"]], ["M", M, ["home", "schedule", "assign", "trainers", "workout", "nutrition", "stats", "member"]], ["MS", T2, ["master", "schedule"]]];
   for (const w of [440, 320]) {
     for (const [tag, p, tabs] of views) {
       await p.setViewportSize({ width: w, height: w === 440 ? 956 : 640 });

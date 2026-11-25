@@ -590,7 +590,7 @@ function MemberStart() {
   return (
     <div className="stack">
       <ClaimCard first />
-      <Card title="혼자 시작하기"><p className="small muted">강사 없이 내 기록부터 쓰고 싶다면 바로 시작하세요. 나중에 초대 코드를 받으면 강사 탭에서 연결할 수 있어요.</p><button className="btn ghost" onClick={solo}>내 기록 만들기</button></Card>
+      <Card title="혼자 시작하기"><p className="small muted">강사 없이 내 기록부터 쓰고 싶다면 바로 시작하세요. 나중에 초대 코드를 받으면 내 정보 › 내 강사에서 연결할 수 있어요.</p><button className="btn ghost" onClick={solo}>내 기록 만들기</button></Card>
     </div>
   );
 }
@@ -1048,7 +1048,7 @@ function MemberTab({ d, onBack }) {
   return (
     <div className="stack">
       {onBack && <button className="btn ghost small back" id="m-back" onClick={onBack}>‹ 회원 목록</button>}
-      <Card title="회원 정보" right={<span className="muted small">한 번 입력하면 영양·심박·회복 탭에 반영</span>}>
+      <Card title="회원 정보" right={<span className="muted small">한 번 입력하면 영양·분석 탭에 반영</span>}>
         <div className="form">
           <Field label="이름"><input id="m-name" value={m.name} onChange={(e) => up("name", e.target.value)} /></Field>
           <Field label="성별"><Seg value={m.sex} options={[["M", "남"], ["F", "여"]]} onChange={(v) => up("sex", v)} small /></Field>
@@ -2395,7 +2395,7 @@ function RequestBook({ date, time, trainerId, onClose }) {
   };
   return (
     <Modal title="수업 일정 요청하기" onClose={onClose} id="req-book">
-      {!me ? <p className="small muted">먼저 강사 탭에서 강사와 연결하세요.</p> : !ts.length ? <p className="small muted">연결된 강사가 없어요. 강사 탭에서 초대 코드를 넣어 연결하세요.</p> : <>
+      {!me ? <p className="small muted">먼저 내 정보 › 내 강사에서 강사와 연결하세요.</p> : !ts.length ? <p className="small muted">연결된 강사가 없어요. 내 정보 › 내 강사에서 초대 코드를 넣어 연결하세요.</p> : <>
         <div className="field"><span>강사</span><div className="chips" id="rb-trainers">{ts.map((x) => <button key={x.id} type="button" className={"chip tog" + (tid === x.id ? " on" : "")} aria-pressed={tid === x.id} data-t={x.name} onClick={() => setTid(x.id)}>{x.name}</button>)}</div></div>
         <div className="form cols">
           <Field label="날짜"><input id="rb-date" type="date" value={d} min={todayISO()} onChange={(e) => setD(e.target.value)} /></Field>
@@ -2678,7 +2678,7 @@ function TrainerProfileForm() {
   const save = async () => {
     setBusy(true); setMsg("");
     const ok = await runSrv(srv, () => srv.sb.from("profiles").update({ tprofile: { nickname: f.nickname.trim(), philosophy: f.philosophy.trim(), career: f.career.trim(), certs: f.certs.trim() } }).eq("id", srv.user.id));
-    setBusy(false); if (ok) setMsg("저장했어요. 연결된 회원의 강사 탭에 보여요.");
+    setBusy(false); if (ok) setMsg("저장했어요. 연결된 회원의 내 강사 화면에 보여요.");
   };
   return (
     <Card title="강사 프로필" right={<span className="muted small">회원에게 보여요</span>}>
@@ -2889,9 +2889,12 @@ function SubCard() {
 /* ───────── 앱 셸 ───────── */
 // 탭: 강사·회원·이 기기 전용이 서로 다름 (마스터는 강사 탭 + 마스터)
 const TABS_LOCAL = [["home", "홈"], ["member", "회원"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"]];
-const TABS_TRAINER = [["home", "홈"], ["schedule", "일정"], ["member", "회원"], ["workout", "운동"], ["assign", "과제"], ["nutrition", "영양"], ["stats", "분석"]];
-const TABS_MEMBER = [["home", "홈"], ["schedule", "일정"], ["assign", "과제"], ["trainers", "강사"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"], ["member", "내 정보"]];
+const TABS_TRAINER = [["home", "홈"], ["schedule", "일정"], ["member", "회원"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"]];
+const TABS_MEMBER = [["home", "홈"], ["schedule", "일정"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"], ["member", "내 정보"]];
 const MASTER_TAB = ["master", "마스터"];
+// 한 탭 안에서 위쪽 버튼으로 나눠 보는 화면 (아래 탭 수 줄이기)
+const SUBTABS = { schedule: [["schedule", "캘린더"], ["assign", "과제"]], member: [["member", "내 정보"], ["trainers", "내 강사"]] };
+const PARENT = { assign: "schedule", trainers: "member" };
 const ANA = [["heart", "심박"], ["recovery", "회복"]];
 const ICONS = {
   home: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
@@ -3091,7 +3094,10 @@ function App() {
   };
   const ctx = { db, setDB, update, srv, toast, sync, favs, toggleFav, openMember: (id) => { update((x) => { x.activeId = id; }); go("member"); }, openAdd: () => setAdding(true), staff: srv ? staff : [], openRefs: (ids) => setRefs({ ids }) };
   const tabs = mode !== "server" ? TABS_LOCAL : role === "member" ? TABS_MEMBER : srv.master ? [...TABS_TRAINER, MASTER_TAB] : TABS_TRAINER;
-  const cur = tabs.some(([k]) => k === tab) ? tab : "home";
+  const subOk = (k) => PARENT[k] && tabs.some(([t]) => t === PARENT[k]) && (k !== "trainers" || role === "member");
+  const cur = tabs.some(([k]) => k === tab) || subOk(tab) ? tab : "home";
+  const navOn = PARENT[cur] && subOk(cur) ? PARENT[cur] : cur;
+  const subSeg = (parent) => <Seg value={cur} options={SUBTABS[parent]} onChange={(k) => go(k, "list")} />;
   const unread = notes.filter((n) => !n.read).length;
   const locked = !!srv && role === "trainer" && !srv.master && !subState(profile.sub_until).on;
   const quota = srv && role === "trainer" && !srv.master ? (() => { const used = db.members.filter((m) => !m.mine && (m.trainerIds || []).includes(userId)).length, pl = planOf(profile.plan), limit = pl ? pl.limit : 0; return { used, limit, plan: pl, full: limit != null && used >= limit }; })() : null;
@@ -3119,13 +3125,12 @@ function App() {
     if (locked) return <TrainerLock />;
     // 회원 기록이 없어도 열리는 탭
     if (srv) {
-      if (cur === "schedule") return <ScheduleTab />;
-      if (cur === "assign") return <AssignTab />;
-      if (cur === "trainers") return <TrainersTab />;
+      if (cur === "schedule" || cur === "assign") return <div className="stack" id="sub-schedule">{subSeg("schedule")}{cur === "assign" ? <AssignTab /> : <ScheduleTab />}</div>;
+      if (cur === "trainers") return <div className="stack" id="sub-member">{subSeg("member")}<TrainersTab /></div>;
       if (cur === "master") return <MasterTab />;
     }
     if (!d) {
-      if (role === "member") return <div className="stack">{cur === "home" && <TodayCard go={go} />}<MemberStart /></div>;
+      if (role === "member") return <div className="stack">{cur === "home" && <TodayCard go={go} />}{cur === "member" && subSeg("member")}<MemberStart /></div>;
       return <div className="stack">{srv && cur === "home" && <TodayCard go={go} />}<Card title="회원이 없습니다" right={<button className="btn small" aria-label="회원 추가" onClick={() => setAdding(true)}>+ 회원 추가</button>}><p className="muted">+ 회원 추가 버튼으로 회원을 등록하세요.{role === "trainer" ? " 등록하면 초대 코드가 생기고, 회원이 그 코드를 넣으면 앱에서 연결돼요." : ""}</p></Card></div>;
     }
     const multi = role !== "member" || db.members.length > 1;
@@ -3134,7 +3139,8 @@ function App() {
       case "member": {
         const hasList = role !== "member" || db.members.length > 1;
         if (hasList && mview === "list") return <MemberListView onPick={(id) => { const nm = db.members.find((m) => m.id === id)?.name || "회원"; update((x) => { x.activeId = id; }); alertMsg(`${nm} 회원을 선택했어요. 다른 탭도 이 회원 기준으로 바뀌어요.`); }} onEdit={(id) => { update((x) => { x.activeId = id; }); go("member"); }} onAdd={role !== "member" ? () => setAdding(true) : null} />;
-        return <MemberTab key={d.m.id} d={d} onBack={hasList ? () => go("member", "list") : null} />;
+        const mt = <MemberTab key={d.m.id} d={d} onBack={hasList ? () => go("member", "list") : null} />;
+        return role === "member" ? <div className="stack" id="sub-member">{subSeg("member")}{mt}</div> : mt;
       }
       case "workout": return <>{curBar}<WorkoutTab key={d.m.id} d={d} sub={sub} setSub={setSub} /></>;
       case "nutrition": return <>{curBar}<NutritionTab d={d} go={go} /></>;
@@ -3162,7 +3168,7 @@ function App() {
           <p className="foot">이 앱의 수치는 공인 공식에 따른 추정치이며 의료적 진단을 대신하지 않습니다. <button className="linkbtn" id="foot-refs" onClick={() => setRefs({ ids: null })}>근거·데이터 구조 보기</button>{mode === "local" && <> <button className="linkbtn" onClick={() => { setDB(sampleDB()); }}>샘플 데이터 다시 불러오기</button></>}</p>
         </main>
         {!locked && <nav className={"nav n" + tabs.length} style={{ gridTemplateColumns: `repeat(${tabs.length},1fr)` }}>
-          {tabs.map(([k, l]) => <button key={k} data-tab={k} className={cur === k ? "on" : ""} onClick={() => go(k, "list")} aria-current={cur === k ? "page" : undefined}>
+          {tabs.map(([k, l]) => <button key={k} data-tab={k} className={navOn === k ? "on" : ""} onClick={() => go(k, "list")} aria-current={navOn === k ? "page" : undefined}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS[k]} /></svg><span>{l}</span></button>)}
         </nav>}
         {refs && <Sheet ids={refs.ids} onClose={() => setRefs(null)} />}
