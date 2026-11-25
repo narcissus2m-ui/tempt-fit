@@ -364,7 +364,8 @@ div.pick:not(.kv3>div){display:grid;gap:8px;margin-top:6px}
 :root{--k-lesson:#D4AF5F;--k-bonus:#7FA88E;--k-task:#8FB3D9;--k-noshow:#B44A40}
 .row.nowrap{flex-wrap:nowrap}
 .nav.n7 button{font-size:10.5px;letter-spacing:-.02em}.nav.n7 svg{width:20px;height:20px}
-@media (max-width:360px){.nav.n6 button,.nav.n7 button{font-size:10px}}
+.nav.n8 button,.nav.n9 button{font-size:10px;letter-spacing:-.03em}.nav.n8 svg,.nav.n9 svg{width:19px;height:19px}
+@media (max-width:360px){.nav.n6 button,.nav.n7 button{font-size:10px}.nav.n8 button,.nav.n9 button{font-size:9.5px;letter-spacing:-.05em}.nav.n9 svg{width:17px;height:17px}}
 .icon.bell{position:relative;display:grid;place-items:center}
 .icon.bell svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .icon.bell .badge{position:absolute;right:-5px;top:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--z5);color:#fff;font:700 10px/17px var(--f-num);font-style:normal;text-align:center}
@@ -1324,7 +1325,7 @@ function MemberListView({ onPick, onEdit, onAdd }) {
   const { db } = useStore();
   const cur = db.members.find((m) => m.id === db.activeId);
   const q = useMemberQuota();
-  return /* @__PURE__ */ React.createElement(Card, { title: `\uD68C\uC6D0 \uBAA9\uB85D \xB7 ${db.members.length}\uBA85`, right: onAdd && /* @__PURE__ */ React.createElement("button", { className: "btn small", "aria-label": "\uD68C\uC6D0 \uCD94\uAC00", onClick: onAdd }, "+ \uD68C\uC6D0 \uCD94\uAC00") }, q && q.plan && /* @__PURE__ */ React.createElement("p", { className: "small" + (q.full ? " warn" : " muted"), id: "quota" }, q.plan.name, " \uB4F1\uAE09 \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "nw" }, "\uD68C\uC6D0 ", /* @__PURE__ */ React.createElement("b", null, q.used), q.limit != null ? ` / ${q.limit}\uBA85` : "\uBA85 (\uBB34\uC81C\uD55C)"), q.full ? " \xB7 \uB354 \uB4F1\uB85D\uD558\uB824\uBA74 \uC0AC\uB78C \uC544\uC774\uCF58 \u203A \uB0B4 \uAD6C\uB3C5\uC5D0\uC11C \uB4F1\uAE09\uC744 \uC62C\uB824 \uC8FC\uC138\uC694." : ""), /* @__PURE__ */ React.createElement("p", { className: "small muted", id: "ml-cur" }, cur ? /* @__PURE__ */ React.createElement(React.Fragment, null, "\uC9C0\uAE08 \uC120\uD0DD: ", /* @__PURE__ */ React.createElement("b", { className: "gold" }, cur.name || "(\uC774\uB984 \uC5C6\uC74C)"), " \xB7 \uD648\xB7\uC6B4\uB3D9\xB7\uC2EC\uBC15\xB7\uC601\uC591\xB7\uD68C\uBCF5 \uD0ED\uC774 \uC774 \uD68C\uC6D0 \uAE30\uC900\uC73C\uB85C \uBC14\uB00C\uC5B4\uC694.") : "\uD68C\uC6D0\uC744 \uC120\uD0DD\uD558\uBA74 \uBAA8\uB4E0 \uD0ED\uC774 \uADF8 \uD68C\uC6D0 \uAE30\uC900\uC73C\uB85C \uBC14\uB00C\uC5B4\uC694."), /* @__PURE__ */ React.createElement(MemberBrowser, { onPick, onEdit }));
+  return /* @__PURE__ */ React.createElement(Card, { title: `\uD68C\uC6D0 \uBAA9\uB85D \xB7 ${db.members.length}\uBA85`, right: onAdd && /* @__PURE__ */ React.createElement("button", { className: "btn small", "aria-label": "\uD68C\uC6D0 \uCD94\uAC00", onClick: onAdd }, "+ \uD68C\uC6D0 \uCD94\uAC00") }, q && q.plan && /* @__PURE__ */ React.createElement("p", { className: "small" + (q.full ? " warn" : " muted"), id: "quota" }, q.plan.name, " \uB4F1\uAE09 \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "nw" }, "\uD68C\uC6D0 ", /* @__PURE__ */ React.createElement("b", null, q.used), q.limit != null ? ` / ${q.limit}\uBA85` : "\uBA85 (\uBB34\uC81C\uD55C)"), q.full ? " \xB7 \uB354 \uB4F1\uB85D\uD558\uB824\uBA74 \uC0AC\uB78C \uC544\uC774\uCF58 \u203A \uB0B4 \uAD6C\uB3C5\uC5D0\uC11C \uB4F1\uAE09\uC744 \uC62C\uB824 \uC8FC\uC138\uC694." : ""), /* @__PURE__ */ React.createElement("p", { className: "small muted", id: "ml-cur" }, cur ? /* @__PURE__ */ React.createElement(React.Fragment, null, "\uC9C0\uAE08 \uC120\uD0DD: ", /* @__PURE__ */ React.createElement("b", { className: "gold" }, cur.name || "(\uC774\uB984 \uC5C6\uC74C)"), " \xB7 \uD648\xB7\uC6B4\uB3D9\xB7\uC601\uC591\xB7\uBD84\uC11D \uD0ED\uC774 \uC774 \uD68C\uC6D0 \uAE30\uC900\uC73C\uB85C \uBC14\uB00C\uC5B4\uC694.") : "\uD68C\uC6D0\uC744 \uC120\uD0DD\uD558\uBA74 \uBAA8\uB4E0 \uD0ED\uC774 \uADF8 \uD68C\uC6D0 \uAE30\uC900\uC73C\uB85C \uBC14\uB00C\uC5B4\uC694."), /* @__PURE__ */ React.createElement(MemberBrowser, { onPick, onEdit }));
 }
 function MemberBrowser({ onPick, onEdit }) {
   const { db, srv, staff } = useStore();
@@ -2993,11 +2994,11 @@ function SubCard() {
   const next = s.on ? addDays(srv.profile.sub_until, 1) : null;
   return /* @__PURE__ */ React.createElement(Card, { title: "\uAD6C\uB3C5", right: /* @__PURE__ */ React.createElement("span", { className: "pill" + (s.on || w ? " ok" : ""), id: "sub-state" }, w && !s.on ? "\uAC10\uBA74" : s.on ? "\uC774\uC6A9 \uC911" : "\uBBF8\uAD6C\uB3C5") }, w && /* @__PURE__ */ React.createElement("p", { className: "small gold", id: "sub-waive" }, w.name, " \uAC15\uC0AC\uC640 \uC5F0\uACB0\uB3FC \uAD6C\uB3C5\uB8CC\uAC00 \uAC10\uBA74\uB3FC\uC694", next ? ` (\uB2E4\uC74C \uACB0\uC81C\uC77C ${mdText(next)}\uBD80\uD130)` : "", "."), /* @__PURE__ */ React.createElement("p", { className: "small" }, "TEMPT FIT \uD68C\uC6D0 \uAD6C\uB3C5\uC740 ", /* @__PURE__ */ React.createElement("b", { className: "gold" }, "\uC6D4 500\uC6D0"), "\uC774\uC5D0\uC694. ", s.on ? s.label.replace("\uC774\uC6A9 \uC911 \xB7 ", "") + " \uC774\uC6A9\uD560 \uC218 \uC788\uC5B4\uC694." : srv.profile.sub_until ? s.label + "." : ""), /* @__PURE__ */ React.createElement("p", { className: "small muted" }, "\uACB0\uC81C \uAE30\uB2A5\uC740 \uC900\uBE44 \uC911\uC774\uC5D0\uC694. \uADF8\uB3D9\uC548\uC740 \uAD6C\uB3C5\uD558\uC9C0 \uC54A\uC544\uB3C4 \uBAA8\uB4E0 \uAE30\uB2A5\uC744 \uC4F8 \uC218 \uC788\uC5B4\uC694."));
 }
-const TABS_LOCAL = [["home", "\uD648"], ["member", "\uD68C\uC6D0"], ["workout", "\uC6B4\uB3D9"], ["stats", "\uBD84\uC11D"]];
-const TABS_TRAINER = [["home", "\uD648"], ["schedule", "\uC77C\uC815"], ["member", "\uD68C\uC6D0"], ["workout", "\uC6B4\uB3D9"], ["assign", "\uACFC\uC81C"], ["stats", "\uBD84\uC11D"]];
-const TABS_MEMBER = [["home", "\uD648"], ["schedule", "\uC77C\uC815"], ["assign", "\uACFC\uC81C"], ["trainers", "\uAC15\uC0AC"], ["workout", "\uC6B4\uB3D9"], ["stats", "\uBD84\uC11D"], ["member", "\uB0B4 \uC815\uBCF4"]];
+const TABS_LOCAL = [["home", "\uD648"], ["member", "\uD68C\uC6D0"], ["workout", "\uC6B4\uB3D9"], ["nutrition", "\uC601\uC591"], ["stats", "\uBD84\uC11D"]];
+const TABS_TRAINER = [["home", "\uD648"], ["schedule", "\uC77C\uC815"], ["member", "\uD68C\uC6D0"], ["workout", "\uC6B4\uB3D9"], ["assign", "\uACFC\uC81C"], ["nutrition", "\uC601\uC591"], ["stats", "\uBD84\uC11D"]];
+const TABS_MEMBER = [["home", "\uD648"], ["schedule", "\uC77C\uC815"], ["assign", "\uACFC\uC81C"], ["trainers", "\uAC15\uC0AC"], ["workout", "\uC6B4\uB3D9"], ["nutrition", "\uC601\uC591"], ["stats", "\uBD84\uC11D"], ["member", "\uB0B4 \uC815\uBCF4"]];
 const MASTER_TAB = ["master", "\uB9C8\uC2A4\uD130"];
-const ANA = [["heart", "\uC2EC\uBC15"], ["nutrition", "\uC601\uC591"], ["recovery", "\uD68C\uBCF5"]];
+const ANA = [["heart", "\uC2EC\uBC15"], ["recovery", "\uD68C\uBCF5"]];
 const ICONS = {
   home: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   member: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0",
@@ -3006,6 +3007,7 @@ const ICONS = {
   assign: "M8 4h8v3H8zM6 5H5v16h14V5h-1M8.5 13l2.5 2.5 4.5-5",
   trainers: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M17 7.5l1.2 2.3 2.5.4-1.8 1.8.4 2.5-2.3-1.2-2.3 1.2.4-2.5-1.8-1.8 2.5-.4z",
   stats: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  nutrition: "M12 21c-4 0-7-3-7-7 0-3 2-6 7-7 5 1 7 4 7 7 0 4-3 7-7 7zM12 7c0-2 1-4 3-4",
   master: "M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4",
   bell: "M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4"
 };
@@ -3386,8 +3388,10 @@ function App() {
       }
       case "workout":
         return /* @__PURE__ */ React.createElement(React.Fragment, null, curBar, /* @__PURE__ */ React.createElement(WorkoutTab, { key: d.m.id, d, sub, setSub }));
+      case "nutrition":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, curBar, /* @__PURE__ */ React.createElement(NutritionTab, { d, go }));
       case "stats":
-        return /* @__PURE__ */ React.createElement("div", { className: "stack" }, curBar, /* @__PURE__ */ React.createElement(Seg, { value: ana, options: ANA, onChange: setAna }), ana === "nutrition" ? /* @__PURE__ */ React.createElement(NutritionTab, { d, go }) : ana === "recovery" ? /* @__PURE__ */ React.createElement(RecoveryTab, { d }) : /* @__PURE__ */ React.createElement(HeartTab, { key: d.m.id, d, go }));
+        return /* @__PURE__ */ React.createElement("div", { className: "stack" }, curBar, /* @__PURE__ */ React.createElement(Seg, { value: ana, options: ANA, onChange: setAna }), ana === "recovery" ? /* @__PURE__ */ React.createElement(RecoveryTab, { d }) : /* @__PURE__ */ React.createElement(HeartTab, { key: d.m.id, d, go }));
       default:
         return /* @__PURE__ */ React.createElement("div", { className: "stack" }, srv && /* @__PURE__ */ React.createElement(TodayCard, { go }), /* @__PURE__ */ React.createElement(Home, { d, go }));
     }

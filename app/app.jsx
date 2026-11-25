@@ -668,7 +668,7 @@ function MemberListView({ onPick, onEdit, onAdd }) {
   return (
     <Card title={`회원 목록 · ${db.members.length}명`} right={onAdd && <button className="btn small" aria-label="회원 추가" onClick={onAdd}>+ 회원 추가</button>}>
       {q && q.plan && <p className={"small" + (q.full ? " warn" : " muted")} id="quota">{q.plan.name} 등급 · <span className="nw">회원 <b>{q.used}</b>{q.limit != null ? ` / ${q.limit}명` : "명 (무제한)"}</span>{q.full ? " · 더 등록하려면 사람 아이콘 › 내 구독에서 등급을 올려 주세요." : ""}</p>}
-      <p className="small muted" id="ml-cur">{cur ? <>지금 선택: <b className="gold">{cur.name || "(이름 없음)"}</b> · 홈·운동·심박·영양·회복 탭이 이 회원 기준으로 바뀌어요.</> : "회원을 선택하면 모든 탭이 그 회원 기준으로 바뀌어요."}</p>
+      <p className="small muted" id="ml-cur">{cur ? <>지금 선택: <b className="gold">{cur.name || "(이름 없음)"}</b> · 홈·운동·영양·분석 탭이 이 회원 기준으로 바뀌어요.</> : "회원을 선택하면 모든 탭이 그 회원 기준으로 바뀌어요."}</p>
       <MemberBrowser onPick={onPick} onEdit={onEdit} />
     </Card>
   );
@@ -2888,11 +2888,11 @@ function SubCard() {
 
 /* ───────── 앱 셸 ───────── */
 // 탭: 강사·회원·이 기기 전용이 서로 다름 (마스터는 강사 탭 + 마스터)
-const TABS_LOCAL = [["home", "홈"], ["member", "회원"], ["workout", "운동"], ["stats", "분석"]];
-const TABS_TRAINER = [["home", "홈"], ["schedule", "일정"], ["member", "회원"], ["workout", "운동"], ["assign", "과제"], ["stats", "분석"]];
-const TABS_MEMBER = [["home", "홈"], ["schedule", "일정"], ["assign", "과제"], ["trainers", "강사"], ["workout", "운동"], ["stats", "분석"], ["member", "내 정보"]];
+const TABS_LOCAL = [["home", "홈"], ["member", "회원"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"]];
+const TABS_TRAINER = [["home", "홈"], ["schedule", "일정"], ["member", "회원"], ["workout", "운동"], ["assign", "과제"], ["nutrition", "영양"], ["stats", "분석"]];
+const TABS_MEMBER = [["home", "홈"], ["schedule", "일정"], ["assign", "과제"], ["trainers", "강사"], ["workout", "운동"], ["nutrition", "영양"], ["stats", "분석"], ["member", "내 정보"]];
 const MASTER_TAB = ["master", "마스터"];
-const ANA = [["heart", "심박"], ["nutrition", "영양"], ["recovery", "회복"]];
+const ANA = [["heart", "심박"], ["recovery", "회복"]];
 const ICONS = {
   home: "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z",
   member: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0",
@@ -2901,6 +2901,7 @@ const ICONS = {
   assign: "M8 4h8v3H8zM6 5H5v16h14V5h-1M8.5 13l2.5 2.5 4.5-5",
   trainers: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20a6.5 6.5 0 0 1 13 0M17 7.5l1.2 2.3 2.5.4-1.8 1.8.4 2.5-2.3-1.2-2.3 1.2.4-2.5-1.8-1.8 2.5-.4z",
   stats: "M4 20V10M10 20V4M16 20v-7M22 20H2",
+  nutrition: "M12 21c-4 0-7-3-7-7 0-3 2-6 7-7 5 1 7 4 7 7 0 4-3 7-7 7zM12 7c0-2 1-4 3-4",
   master: "M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6zM9 12l2 2 4-4",
   bell: "M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4",
 };
@@ -3136,8 +3137,9 @@ function App() {
         return <MemberTab key={d.m.id} d={d} onBack={hasList ? () => go("member", "list") : null} />;
       }
       case "workout": return <>{curBar}<WorkoutTab key={d.m.id} d={d} sub={sub} setSub={setSub} /></>;
+      case "nutrition": return <>{curBar}<NutritionTab d={d} go={go} /></>;
       case "stats": return <div className="stack">{curBar}<Seg value={ana} options={ANA} onChange={setAna} />
-        {ana === "nutrition" ? <NutritionTab d={d} go={go} /> : ana === "recovery" ? <RecoveryTab d={d} /> : <HeartTab key={d.m.id} d={d} go={go} />}</div>;
+        {ana === "recovery" ? <RecoveryTab d={d} /> : <HeartTab key={d.m.id} d={d} go={go} />}</div>;
       default: return <div className="stack">{srv && <TodayCard go={go} />}<Home d={d} go={go} /></div>;
     }
   };
