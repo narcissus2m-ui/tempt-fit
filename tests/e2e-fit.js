@@ -113,9 +113,9 @@ async function overflowCheck(p, tag) {
   ok(await T.$("#trainer-lock") && !(await T.$("nav.nav")), "구독 전 강사: 자물쇠 잠금 화면 (탭 없음)");
   ok(!!(await asRole(tid, "insert into public.members(id, name, trainer_id) values ('lockx', 'x', $1)", [tid])).error, "서버: 구독 전 강사는 회원 등록 불가");
   await overflowCheck(T, "440px 강사 잠금 화면"); await shot(T, "t-lock");
-  ok((await T.$$("#plan-pick .plan")).length === 4, "잠금 화면: 등급 4개 (5명·10명·20명·무제한)");
+  ok((await T.$$("#plan-pick .plan")).length === 3, "잠금 화면: 등급 3개 (5명·10명·무제한)");
   await T.click('#plan-pick [data-plan="basic"]');
-  ok((await T.textContent("#lock-sub")).includes("베이직 · 월 8,900원"), "등급 고르면 신청 버튼에 요금");
+  ok((await T.textContent("#lock-sub")).includes("베이직 · 월 9,000원"), "등급 고르면 신청 버튼에 요금");
   await T.click("#lock-sub"); await T.waitForSelector("#lock-msg");
   ok((await T.textContent("#lock-msg")).includes("구독 신청을 보냈어요"), "구독 신청하기 버튼");
   await T.click("#lock-check"); await wait(500);
@@ -354,28 +354,49 @@ async function overflowCheck(p, tag) {
   ok(await T2.$('#ms-trainers [data-user="코치K"] >> text=+1개월'), "마스터: 강사 구독도 +1개월로 지정");
   await T2.selectOption('#ms-trainers [data-user="코치K"] select', "pro"); await T2.click('#ms-trainers [data-user="코치K"] >> text=+1개월'); await wait(900);
   ok((await q1("select plan from profiles where id=$1", [tid]))[0].plan === "pro", "마스터: 강사 등급 지정 (프로)");
-  ok(!!(await asRole(tid, "update public.profiles set plan='unlimited' where id=$1 returning plan", [tid])).rows?.every((r) => r.plan === "pro"), "서버: 강사가 스스로 등급을 못 바꿈");
-  // 등급 한도: 베이직(5명)으로 내려서 확인
+  ok(!!(await asRole(tid, "update public.profiles set plan='basic' where id=$1 returning plan", [tid])).rows?.every((r) => r.plan === "pro"), "서버: 강사가 스스로 등급을 못 바꿈");
+  ok(!!(await q1("update profiles set plan='unlimited' where id=$1", [tid]).catch((e) => ({ error: e.message }))).error, "서버: 없어진 등급(무제한·20명)은 지정 불가");
+  // 등급 한도: 베이직(면제 자리 5개)으로 내려서 확인. 스스로 구독 중인 박회원은 자리에 안 셈
   await q1("update profiles set plan='basic' where id=$1", [tid]);
-  for (let i = 1; i <= 4; i++) await q1("insert into members(id, name, trainer_id) values ($1, $2, $3)", ["lim" + i, "한도" + i, tid]);
-  const lim = await asRole(tid, "insert into public.members(id, name, trainer_id) values ('lim5', 'x', $1)", [tid]);
-  ok(!!lim.error && /member_limit/.test(lim.error), "서버: 베이직 5명 다 차면 회원 등록 막힘");
+  const slots = async () => (await q1("select member_id from trainer_slots($1)", [tid])).map((r) => r.member_id);
+  ok(!(await slots()).includes(mid), "서버: 스스로 구독 중인 회원은 면제 자리에 안 셈");
+  for (let i = 1; (await slots()).length < 5; i++) await q1("insert into members(id, name, trainer_id) values ($1, $2, $3)", ["lim" + i, "한도" + i, tid]);
+  const lim = await asRole(tid, "insert into public.members(id, name, trainer_id) values ('lim9', 'x', $1) returning sub_only", [tid]);
+  ok(!lim.error && lim.rows[0].sub_only === true, "서버: 자리 5개가 다 차도 등록은 되고 구독 회원 전용 코드가 됨");
   await refresh(T); await tab(T, "member");
-  ok((await T.textContent("#quota")).replace(/\s/g, "").includes("5/5명"), "회원 목록에 회원 수 / 한도");
+  const qt = (await T.textContent("#quota")).replace(/\s/g, "");
+  ok(qt.includes("면제자리5/5") && qt.includes("본인구독1명"), "회원 목록에 면제 자리 / 한도 · 본인 구독 수");
   await overflowCheck(T, "440px 회원 한도"); await shot(T, "t-quota");
   await T.click('[aria-label="회원 추가"]'); await T.fill("#new-name", "여섯째"); await T.press("#new-name", "Enter"); await wait(500);
-  ok((await count("members where name='여섯째'")) === 0 && (await T.textContent(".toast")).includes("5명까지"), "화면: 한도 넘으면 추가 막고 등급 올리기 안내");
+  ok((await T.textContent(".toast")).includes("다 찼어요"), "화면: 자리가 다 차면 구독 회원 전용 코드 안내");
+  await T.waitForSelector("#sub-only-note", { timeout: 8000 });
+  const six = (await q1("select id, invite_code, sub_only from members where name='여섯째'"))[0];
+  ok(six && six.sub_only, "화면에서 등록한 회원도 구독 회원 전용 코드 + 안내 문구");
+  await overflowCheck(T, "440px 구독 회원 전용 코드"); await shot(T, "t-subonly");
+  ok(/sub_only_pending/.test((await asRole(tid, "insert into public.schedules(id, member_id, starts_at) values ('so1', $1, now() + interval '1 day')", [six.id])).error || ""), "서버: 구독 회원 전용 코드 회원은 연결 전 일정 못 잡음");
+  ok(/sub_only_pending/.test((await asRole(tid, "insert into public.assignments(id, member_id, title, due_on) values ('so2', $1, 'x', current_date)", [six.id])).error || ""), "서버: … 과제도 못 줌");
+  const nu = "00000000-0000-0000-0000-0000000000f1";
+  await q1("insert into auth.users(id, raw_user_meta_data) values ($1, $2)", [nu, JSON.stringify({ role: "member", display_name: "새회원" })]);
+  ok(/sub_only/.test((await asRole(nu, "select public.claim_member($1)", [six.invite_code])).error || ""), "서버: 구독 안 한 회원은 구독 회원 전용 코드로 연결 못 함");
+  await q1("update profiles set sub_until = current_date + 10 where id=$1", [nu]);
+  ok(!(await asRole(nu, "select public.claim_member($1)", [six.invite_code])).error, "서버: 구독 중인 회원은 구독 회원 전용 코드로 연결됨");
   await T.click('button[aria-label="계정과 저장 상태"]'); await T.waitForSelector("#tplan-line");
   ok((await T.textContent("#tplan-state")) === "베이직", "강사 계정 화면: 내 구독 등급");
   await T.click("#tplan-change"); await overflowCheck(T, "440px 내 구독 등급 바꾸기"); await shot(T, "t-plan"); await T.click(".sheet >> text=닫기");
-  await q1("DELETE FROM members WHERE id LIKE 'lim%'");
+  await q1("DELETE FROM members WHERE id LIKE 'lim%' OR name='여섯째'"); await q1("DELETE FROM auth.users WHERE id=$1", [nu]);
   await refresh(T);
-  // 무제한 강사와 연결된 회원: 구독료 감면
-  await q1("update profiles set plan='unlimited' where id=$1", [tid]);
-  ok((await asRoleCommit(muid, "select public.member_fee_waived($1) v", [muid])).rows[0].v === true, "서버: 무제한 강사와 연결된 회원은 감면");
+  // 연결된 회원 구독료 면제: 베이직이면 자리 안에서, 스스로 구독 중이면 그 기간이 끝난 뒤부터
+  const fee = async () => (await asRoleCommit(muid, "select public.fee_status($1) v", [muid])).rows[0].v.state;
+  ok((await fee()) === "after", "서버: 구독 중인 회원 + 베이직 강사(자리 남음) → 기간 끝나면 면제");
+  const keep = (await q1("select sub_until::text v from profiles where id=$1", [muid]))[0].v;
+  await q1("update profiles set sub_until = null where id=$1", [muid]);
+  ok((await fee()) === "waived", "서버: 구독 안 한 연결 회원 + 베이직 자리 안 → 지금 면제");
+  await q1("update profiles set sub_until = $2::date where id=$1", [muid, keep]);
+  await q1("update profiles set plan='pro' where id=$1", [tid]);
+  ok((await asRoleCommit(muid, "select public.member_fee_waived($1) v", [muid])).rows[0].v === true, "서버: 프로 강사와 연결된 회원은 면제");
   await shot(T2, "master");
   await refresh(M); await M.click('button[aria-label="계정과 저장 상태"]'); await M.waitForSelector("#sub-state");
-  ok((await M.textContent("#sub-state")) === "이용 중" && (await M.textContent("#sub-waive")).includes("다음 결제일"), "회원 계정 화면: 구독 중 + 다음 결제일부터 감면");
+  ok((await M.textContent("#sub-state")) === "이용 중" && (await M.textContent("#sub-waive")).includes("구독 기간이 끝나면"), "회원 계정 화면: 구독 중 + 기간 끝나면 면제");
   await shot(M, "m-account"); await M.click(".sheet >> text=닫기");
 
   // ── 화면 검사: 440px(아이폰 17 Pro Max) · 320px, 강사·회원·마스터
