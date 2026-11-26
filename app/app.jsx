@@ -2102,7 +2102,8 @@ function ScheduleTab() {
         {view === "day" && <TimeGrid days={[date]} sch={sch} asg={asg} onTap={tap} onOpen={setOpen} />}
         {view === "week" && <TimeGrid days={Array.from({ length: 7 }, (_, i) => addDays(range[0], i))} sch={sch} asg={asg} onTap={tap} onOpen={setOpen} onDay={(d) => { setDate(d); setView("day"); }} />}
         {view === "month" && <MonthGrid ym={date.slice(0, 7)} sch={sch} asg={asg} onDay={(d) => { setDate(d); setView("day"); }} />}
-        <p className="small muted legend"><span className="lg k-lesson" />수업 <span className="lg k-bonus" />보강 <span className="lg k-task" />과제 기한 <span className="lg k-noshow" />노쇼 · {isMem ? "빈 칸을 누르면 수업 일정을 요청해요" : "빈 칸 위쪽은 정시, 아래쪽은 30분에 잡아요"}</p>
+        <p className="small muted legend"><span className="lg k-lesson" />수업 <span className="lg k-bonus" />보강 <span className="lg k-task" />과제 기한 <span className="lg k-noshow" />노쇼</p>
+        <p className="small muted cal-hint" id="cal-hint">{isMem ? "빈 칸을 누르면 수업 일정을 요청해요" : "빈 칸 위쪽은 정시, 아래쪽은 30분에 잡아요"}</p>
       </Card>
       {!isMem && <Card title="여러 날 한꺼번에 잡기">
         <p className="small muted">회원을 고르면 월간 달력이 떠요. 날짜를 누르고 시간을 고르는 걸 반복해 한 번에 등록해요.</p>
