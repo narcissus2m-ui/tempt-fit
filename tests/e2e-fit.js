@@ -124,8 +124,8 @@ async function overflowCheck(p, tag) {
   await T.click("#lock-check"); await T.waitForSelector("nav.nav");
   ok(!(await T.$("#trainer-lock")), "구독되면 잠금이 풀림");
   ok((await T.$$eval("nav button span", (s) => s.map((x) => x.textContent))).join() === "홈,일정,회원,운동,영양,분석", "강사 탭: 홈·일정(캘린더·과제)·회원·운동·영양·분석");
-  ok(await T.textContent(".wm") === "TEMPTFIT", "머리글 이름 TEMPT FIT");
-  ok((await T.title()) === "TEMPT FIT", "문서 제목 TEMPT FIT");
+  ok(await T.textContent(".wm") === "CrackGYM", "머리글 이름 Crack GYM");
+  ok((await T.title()) === "Crack GYM", "문서 제목 Crack GYM");
   ok(!(await T.content()).includes("선생님"), "화면에 '선생님' 표현 없음");
 
   // 회원 등록 → 초대 코드

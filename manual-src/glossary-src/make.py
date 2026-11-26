@@ -183,8 +183,8 @@ out=f'''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TEMPT FIT 용어집</title>
-<meta name="description" content="TEMPT FIT 앱에 나오는 운동·체성분·영양·심박 용어 해설">
+<title>Crack GYM 용어집</title>
+<meta name="description" content="Crack GYM 앱에 나오는 운동·체성분·영양·심박 용어 해설">
 {icon}
 <style>:root{{--bg:#f7f4ee;--paper:#fffdf9;--ink:#1d1b18;--muted:#6b645a;--line:#e4dccd;--gold:#a8842f;--gold-soft:#f3ead4}}
 @media (prefers-color-scheme:dark){{:root:not([data-theme="light"]){{--bg:#141311;--paper:#1c1a17;--ink:#eee8dc;--muted:#a69d8d;--line:#35302a;--gold:#d8b665;--gold-soft:#2b2518}}}}
@@ -209,7 +209,7 @@ footer{{color:var(--muted);font-size:13px;text-align:center;margin-top:28px}}
 </style>
 </head>
 <body><div class="wrap">
-<header><div class="brand">TEMPT FIT</div><h1>용어집</h1><p>앱에 나오는 운동·체성분·영양·심박 용어를 쉽게 풀어 썼어요.</p></header>
+<header><div class="brand">Crack GYM</div><h1>용어집</h1><p>앱에 나오는 운동·체성분·영양·심박 용어를 쉽게 풀어 썼어요.</p></header>
 <div class="tools"><input id="q" type="search" placeholder="용어 찾기 (예: RIR, 기초대사량)" aria-label="용어 찾기"><ol>{toc}</ol></div>
 {body}
 <p class="none" id="none">찾는 용어가 없어요.</p>
