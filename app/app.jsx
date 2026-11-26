@@ -416,8 +416,6 @@ function errMsg(e) {
   if (/need_time/.test(s)) return "시각을 정해 주세요.";
   if (/member_only/.test(s)) return "회원 계정만 할 수 있어요.";
   if (/member_limit/.test(s)) return "구독 등급의 회원 수 한도를 넘었어요. 사람 아이콘 › 내 구독에서 등급을 올려 주세요.";
-  if (/sub_only_pending/.test(s)) return "구독 회원 전용 코드로 등록한 회원이에요. 회원이 코드를 넣어 연결한 뒤에 일정·수업·과제를 잡을 수 있어요.";
-  if (/sub_only/.test(s)) return "이 코드는 TEMPT FIT을 구독 중인 회원만 쓸 수 있어요. 강사의 면제 자리가 다 찼어요.";
   if (/not_linked/.test(s)) return "연결된 회원·강사만 할 수 있어요.";
   if (/duplicate key|already pending|unique/i.test(s)) return "이미 보낸 요청이 있어요.";
   if (/not_pending|already_decided/.test(s)) return "이미 처리된 요청이에요.";
@@ -432,11 +430,11 @@ function errMsg(e) {
 }
 
 // 앱 객체 ↔ DB 행
-const SERVER_ONLY = ["inviteCode", "linked", "trainerId", "trainerIds", "mine", "userId", "subOnly"];
+const SERVER_ONLY = ["inviteCode", "linked", "trainerId", "trainerIds", "mine", "userId"];
 const ROLE_NAME = { trainer: "강사", member: "회원" };
 const BUCKET = "session-media";
 const memberRow = (m) => { const data = { ...m }; delete data.id; delete data.name; SERVER_ONLY.forEach((k) => delete data[k]); return { id: m.id, name: m.name || "", data }; };
-const fromMemberRow = (r, me, links) => ({ ...(r.data || {}), id: r.id, name: r.name, inviteCode: r.invite_code, subOnly: !!r.sub_only, linked: !!r.user_id, userId: r.user_id || null, trainerId: r.trainer_id, trainerIds: links.filter((l) => l.member_id === r.id).map((l) => l.trainer_id), mine: r.user_id === me });
+const fromMemberRow = (r, me, links) => ({ ...(r.data || {}), id: r.id, name: r.name, inviteCode: r.invite_code, linked: !!r.user_id, userId: r.user_id || null, trainerId: r.trainer_id, trainerIds: links.filter((l) => l.member_id === r.id).map((l) => l.trainer_id), mine: r.user_id === me });
 // 기록마다 쓴 사람·쓴 시각 (서버가 정하고 앱은 보여 주기만)
 const recMeta = (r) => ({ by: r.created_by || null, createdAt: r.created_at || null });
 const numOrNull = (v) => (v == null || v === "" || isNaN(+v) ? null : +v);
@@ -515,7 +513,7 @@ async function pushDiff(sb, diff, me) {
   const now = () => new Date().toISOString();
   const M = diff.members; let created = [];
   const owner = me.role === "member" ? { user_id: me.id } : { trainer_id: me.id };
-  if (M.add.length) created = ok(await sb.from("members").upsert(M.add.map((r) => ({ ...r, ...owner })), { onConflict: "id", ignoreDuplicates: true }).select("id,invite_code,user_id,trainer_id,sub_only")) || [];
+  if (M.add.length) created = ok(await sb.from("members").upsert(M.add.map((r) => ({ ...r, ...owner })), { onConflict: "id", ignoreDuplicates: true }).select("id,invite_code,user_id,trainer_id")) || [];
   for (const r of M.change) ok(await sb.from("members").update({ name: r.name, data: r.data, updated_at: now() }).eq("id", r.id));
   for (const t of ["exercises", "measurements", "sessions"]) {
     const D = diff[t];
@@ -631,15 +629,13 @@ function LinkCard({ m }) {
     if (error) setErr(errMsg(error)); else await srv.reload();
     setBusy(false); setAsk(false);
   };
-  const sub = m.userId ? subState(PEOPLE[m.userId]?.subUntil) : null;
   return (
     <Card title="회원 앱 연결" right={<span className={"pill" + (m.linked ? " ok" : "")}>{m.linked ? "연결됨" : "대기"}</span>}>
       {others.length > 0 && <p className="small muted" id="m-trainers">함께 맡은 강사: {staffNames(staff, others)}</p>}
       {m.linked ? <>
-        <p className="small">{m.name} 회원이 자기 계정으로 로그인해 같은 기록과 일정을 봅니다.{sub && <> 구독: <b className={sub.on ? "gold" : ""}>{sub.label}</b></>}</p>
+        <p className="small">{m.name} 회원이 자기 계정으로 로그인해 같은 기록과 일정을 봅니다.</p>
       </> : m.inviteCode ? <>
-        <p className="invite"><span className="muted small">{m.subOnly ? "구독 회원 전용 코드" : "초대 코드"}</span><b id="invite-code">{m.inviteCode}</b></p>
-        {m.subOnly && <p className="small warnc" id="sub-only-note">면제 자리가 다 찬 뒤 등록해서, 스스로 구독 중인 회원만 이 코드로 연결할 수 있어요. 연결 전에는 일정·수업·과제를 잡을 수 없어요.</p>}
+        <p className="invite"><span className="muted small">초대 코드</span><b id="invite-code">{m.inviteCode}</b></p>
         <p className="small muted">회원이 앱에서 ‘회원’으로 가입한 뒤 이 코드를 넣으면 연결됩니다. 이미 앱을 쓰던 회원이면 그 기록에 합쳐져요.</p>
       </> : <p className="small muted">서버에 저장되면 초대 코드가 생깁니다…</p>}
       {!ask ? <button className="btn ghost small" id="m-leave" onClick={() => setAsk(true)}>연결 해제</button> :
@@ -670,7 +666,7 @@ function MemberListView({ onPick, onEdit, onAdd }) {
   const q = useMemberQuota();
   return (
     <Card title={`회원 목록 · ${db.members.length}명`} right={onAdd && <button className="btn small" aria-label="회원 추가" onClick={onAdd}>+ 회원 추가</button>}>
-      {q && q.plan && <p className={"small" + (q.full ? " warn" : " muted")} id="quota">{q.plan.name} 등급 · <QuotaText q={q} />{q.full ? " · 자리가 다 찼어요. 지금 등록하면 구독 중인 회원만 연결할 수 있는 코드가 나와요." : ""}</p>}
+      {q && q.plan && <p className={"small" + (q.full ? " warn" : " muted")} id="quota">{q.plan.name} 등급 · <QuotaText q={q} />{q.full ? " · 더 등록하려면 사람 아이콘 › 내 구독에서 등급을 올려 주세요." : ""}</p>}
       <p className="small muted" id="ml-cur">{cur ? <>지금 선택: <b className="gold">{cur.name || "(이름 없음)"}</b> · 홈·운동·영양·분석 탭이 이 회원 기준으로 바뀌어요.</> : "회원을 선택하면 모든 탭이 그 회원 기준으로 바뀌어요."}</p>
       <MemberBrowser onPick={onPick} onEdit={onEdit} />
     </Card>
@@ -763,7 +759,6 @@ function AccountSheet({ onClose, cfg, saveCfg, srv, sync, flush, local, goLogin,
         </Card>}
         {srv && srv.profile.role === "trainer" && <TrainerPlanCard />}
         {srv && srv.profile.role === "trainer" && <TrainerProfileForm />}
-        {srv && srv.profile.role === "member" && <SubCard />}
         {srv && localData && <Card title="이 기기에 있던 기록 올리기">
           <p className="small">로그인 전에 이 기기에 저장한 회원 {localData.members.length}명(인바디 {localData.measurements.length}회, 운동 {localData.sessions.length}회)이 있습니다. 서버로 옮기면 다른 기기에서도 보입니다.</p>
           <button className="btn" onClick={importLocal}>서버로 올리기</button>
@@ -2737,15 +2732,14 @@ function MasterTab() {
           {!t.master && <span className="row nowrap"><select aria-label="등급" className="plansel" value={tplan[t.id] || t.plan || "standard"} onChange={(e) => setTplan({ ...tplan, [t.id]: e.target.value })}>{PLANS.map((p) => <option key={p.id} value={p.id}>{p.name} {p.limit == null ? "무제한" : p.limit + "명"}</option>)}</select>
             <button className="btn small" disabled={busy} onClick={() => setSub(t.id, plusMonth(t.subUntil), tplan[t.id] || t.plan || "standard")}>+1개월</button>{t.subUntil && <button className="btn ghost small" disabled={busy} onClick={() => setSub(t.id, null)}>해제</button>}</span>}
         </li>; })}</ul>
-        <p className="small muted">구독하지 않은 강사는 가입만 되고, 잠금 화면에서 등급을 골라 구독 신청을 보내요. 등급을 고르고 +1개월을 누르면 바로 열려요. 등급: 베이직 9,000원 5명 · 스탠다드 15,000원 10명 · 프로 23,800원 무제한. 연결된 회원은 구독료 면제.</p>
+        <p className="small muted">구독하지 않은 강사는 가입만 되고, 잠금 화면에서 등급을 골라 구독 신청을 보내요. 등급을 고르고 +1개월을 누르면 바로 열려요. 등급: 베이직 9,000원 15명 · 스탠다드 15,000원 30명 · 프로 23,800원 무제한. 회원은 무료.</p>
       </Card>
-      <Card title={`회원 계정 · ${members.length}명`} right={<span className="muted small">구독 월 500원</span>}>
+      <Card title={`회원 계정 · ${members.length}명`} right={<span className="muted small">무료</span>}>
         <input className="search" type="search" placeholder="이름 검색" value={q} onChange={(e) => setQ(e.target.value)} />
-        <ul className="clist" id="ms-members">{members.map((p) => { const s = subState(p.subUntil); return <li key={p.id} data-user={p.name}>
-          <span><b>{p.name || "(이름 없음)"}</b> <span className={"small" + (s.on ? " gold" : " muted")}>{s.label}</span></span>
-          <span className="row nowrap"><button className="btn small" disabled={busy} onClick={() => setSub(p.id, plusMonth(p.subUntil))}>+1개월</button>{p.subUntil && <button className="btn ghost small" disabled={busy} onClick={() => setSub(p.id, null)}>해제</button>}</span>
+        <ul className="clist" id="ms-members">{members.map((p) => { const ts = db.members.find((m) => m.userId === p.id)?.trainerIds || []; return <li key={p.id} data-user={p.name}>
+          <span><b>{p.name || "(이름 없음)"}</b> <span className="small muted">{ts.length ? "강사 " + ts.length + "명과 연결" : "연결된 강사 없음"}</span></span>
         </li>; })}</ul>
-        <p className="small muted">결제 연동 전까지는 여기서 구독 기간을 직접 정해요. 지금은 구독하지 않아도 앱을 쓸 수 있고, 상태만 보여 줘요.</p>
+        <p className="small muted">회원은 구독료 없이 모든 기능을 무료로 써요.</p>
       </Card>
     </div>
   );
@@ -2775,48 +2769,30 @@ function TodayCard({ go }) {
 }
 
 
-/* 강사 구독 등급 (2026-11-26): 월 요금 · 면제 자리 수. 모든 등급에서 연결된 회원은 회원 구독료(월 500원) 면제 */
+/* 강사 구독 등급 (2026-11-26): 월 요금 · 연결 회원 수. 회원은 무료 */
 const PLANS = [
-  { id: "basic", name: "베이직", price: 9000, limit: 5 },
-  { id: "standard", name: "스탠다드", price: 15000, limit: 10 },
+  { id: "basic", name: "베이직", price: 9000, limit: 15 },
+  { id: "standard", name: "스탠다드", price: 15000, limit: 30 },
   { id: "pro", name: "프로", price: 23800, limit: null },
 ];
 const euro = (w) => { const c = w.charCodeAt(w.length - 1) - 0xac00; const j = c >= 0 && c < 11172 ? c % 28 : 0; return w + (j === 0 || j === 8 ? "로" : "으로"); };
 const planOf = (id) => PLANS.find((p) => p.id === id) || null;
 const won = (n) => n.toLocaleString("ko-KR") + "원";
 const limitText = (p) => (p.limit == null ? "회원 무제한" : `회원 ${p.limit}명`);
-// 강사의 면제 자리 (서버 trainer_slots와 같은 규칙): 연결 회원 중 스스로 구독 중이 아닌 회원 + 코드 입력 전 대기 회원.
-// 스스로 구독 중인 회원(self)과 구독 회원 전용 코드 대기(subOnly)는 자리에 안 셈
+// 강사의 회원 수 (서버 member_limit_check와 같은 기준: 등록 대기 포함, 회원 본인 행 제외)와 한도
 function quotaOf(db, tid, planId, master) {
-  const mine = db.members.filter((m) => !m.mine && (m.trainerIds || []).includes(tid));
-  const self = mine.filter((m) => m.userId && subState(PEOPLE[m.userId]?.subUntil).on).length;
-  const subOnly = mine.filter((m) => !m.userId && m.subOnly).length;
-  const used = mine.length - self - subOnly;
-  if (master) return { used, self, subOnly, limit: null, plan: null, full: false };
+  const used = db.members.filter((m) => !m.mine && (m.trainerIds || []).includes(tid)).length;
+  if (master) return { used, limit: null, plan: null, full: false };
   const plan = planOf(planId);
   const limit = plan ? plan.limit : 0;
-  return { used, self, subOnly, limit, plan, full: limit != null && used >= limit };
+  return { used, limit, plan, full: limit != null && used >= limit };
 }
 function useMemberQuota() {
   const { db, srv } = useStore();
   if (!srv || srv.profile.role !== "trainer") return null;
   return quotaOf(db, srv.user.id, srv.profile.plan, srv.master);
 }
-const QuotaText = ({ q }) => q.limit == null ? <span className="nw">회원 <b>{q.used + q.self + q.subOnly}</b>명 (무제한)</span> : <>
-  <span className="nw">면제 자리 <b>{q.used}</b> / {q.limit}</span>{q.self > 0 && <> · <span className="nw">본인 구독 {q.self}명</span></>}{q.subOnly > 0 && <> · <span className="nw">구독 회원 전용 대기 {q.subOnly}명</span></>}</>;
-// 회원 구독료 면제 상태 (서버 fee_status): waived 지금 면제 / after 본인 구독 기간이 끝나면 면제 / none
-function useFeeStatus() {
-  const { srv, db } = useStore();
-  const [st, setSt] = useState(null);
-  const key = (db.members.find((m) => m.mine)?.trainerIds || []).join(",");
-  useEffect(() => {
-    let live = true;
-    if (!srv) return;
-    srv.sb.rpc("fee_status", { uid: srv.user.id }).then(({ data, error }) => { if (live && !error && data) setSt(data); });
-    return () => { live = false; };
-  }, [srv && srv.user.id, srv && srv.profile.sub_until, key]);
-  return st;
-}
+const QuotaText = ({ q }) => <span className="nw">회원 <b>{q.used}</b>{q.limit != null ? ` / ${q.limit}명` : "명 (무제한)"}</span>;
 function PlanPicker({ value, onChange }) {
   return (
     <div className="plans" id="plan-pick" role="radiogroup" aria-label="강사 구독 등급">
@@ -2852,7 +2828,7 @@ function TrainerLock() {
         </ul>
         <p className="small" style={{ marginTop: 12 }}><b className="gold">등급을 고르세요</b> · 연결할 회원 수에 맞게</p>
         <PlanPicker value={plan} onChange={setPlan} />
-        <p className="small muted">어느 등급이든 초대 코드로 연결된 회원은 회원 구독료(월 500원)가 면제돼요. 베이직·스탠다드는 스스로 구독 중인 회원을 인원에 세지 않아요.</p>
+        <p className="small muted">회원은 TEMPT FIT을 무료로 써요. 요금은 강사 구독만 있어요.</p>
         {srv.profile.sub_until && !s.on && <p className="small warnc">구독이 {s.label.replace("만료 · ", "")}에 끝났어요.</p>}
         <button className="btn wide" id="lock-sub" disabled={busy} onClick={ask}>{busy ? "잠시만요…" : `${planOf(plan).name} · 월 ${won(planOf(plan).price)} 구독 신청`}</button>
         {msg && <p className="small" id="lock-msg" role="status">{msg}</p>}
@@ -2873,37 +2849,17 @@ function TrainerPlanCard() {
   if (srv.master) return (
     <Card title="내 구독" right={<span className="pill ok" id="tplan-state">마스터</span>}>
       <p className="small" id="tplan-line">프로 등급과 같은 기능 · <span className="nw">구독료 면제</span></p>
-      <p className="small gold">연결된 회원은 구독료가 면제돼요.</p>
     </Card>);
   if (!q) return null;
   const ask = async () => { setBusy(true); const { data, error } = await srv.sb.rpc("request_subscription", { p_plan: plan }); setBusy(false); setMsg(error ? errMsg(error) : data === "already" ? "오늘 이미 신청했어요." : "등급 변경을 신청했어요. 마스터가 확인하면 바뀌어요."); };
   return (
     <Card title="내 구독" right={<span className={"pill" + (s.on ? " ok" : "")} id="tplan-state">{q.plan ? q.plan.name : "등급 없음"}</span>}>
       <p className="small" id="tplan-line">{q.plan ? <>월 {won(q.plan.price)} · <QuotaText q={q} /> · <span className="nw">{s.label}</span></> : "등급이 아직 정해지지 않았어요."}</p>
-      {q.plan && <p className="small gold">연결된 회원은 구독료가 면제돼요.{q.limit != null ? " 스스로 구독 중인 회원은 자리에 안 세요." : ""}</p>}
       {!open ? <button className="btn ghost small" id="tplan-change" onClick={() => setOpen(true)}>등급 바꾸기</button> : <>
         <PlanPicker value={plan} onChange={setPlan} />
         <div className="row wrap"><button className="btn small" disabled={busy} onClick={ask}>{euro(planOf(plan).name)} 변경 신청</button><button className="btn ghost small" onClick={() => setOpen(false)}>닫기</button></div>
       </>}
       {msg && <p className="small" role="status">{msg}</p>}
-    </Card>
-  );
-}
-
-/* 회원: 구독 상태 (월 500원, 결제 연동 전). 강사와 연결되면 면제 (베이직·스탠다드는 면제 자리 안에서) */
-function SubCard() {
-  const { srv } = useStore();
-  const s = subState(srv.profile.sub_until);
-  const f = useFeeStatus();
-  const st = f ? f.state : "none";
-  const tn = f && f.trainer ? (PEOPLE[f.trainer]?.name || "") : "";
-  const next = s.on ? addDays(srv.profile.sub_until, 1) : null;
-  return (
-    <Card title="구독" right={<span className={"pill" + (s.on || st === "waived" ? " ok" : "")} id="sub-state">{st === "waived" ? "면제" : s.on ? "이용 중" : "미구독"}</span>}>
-      {st === "waived" && <p className="small gold" id="sub-waive">{tn} 강사와 연결돼 구독료가 면제돼요.</p>}
-      {st === "after" && <p className="small gold" id="sub-waive">{tn} 강사와 연결돼, 지금 구독 기간이 끝나면{next ? ` (${mdText(next)}부터)` : ""} 구독료가 면제돼요.</p>}
-      <p className="small">TEMPT FIT 회원 구독은 <b className="gold">월 500원</b>이에요. {s.on ? s.label.replace("이용 중 · ", "") + " 이용할 수 있어요." : srv.profile.sub_until ? s.label + "." : ""}</p>
-      <p className="small muted">결제 기능은 준비 중이에요. 그동안은 구독하지 않아도 모든 기능을 쓸 수 있어요.</p>
     </Card>
   );
 }
@@ -3011,7 +2967,7 @@ function App() {
       const created = await pushDiff(me.sb, diff, me);
       synced.current = target;
       if (created.length) {
-        const patch = (x) => ({ ...x, members: x.members.map((mm) => { const r = created.find((c) => c.id === mm.id); return r ? { ...mm, inviteCode: r.invite_code, subOnly: !!r.sub_only, linked: !!r.user_id, trainerId: r.trainer_id, mine: r.user_id === me.id } : mm; }) });
+        const patch = (x) => ({ ...x, members: x.members.map((mm) => { const r = created.find((c) => c.id === mm.id); return r ? { ...mm, inviteCode: r.invite_code, linked: !!r.user_id, trainerId: r.trainer_id, mine: r.user_id === me.id } : mm; }) });
         synced.current = patch(synced.current); setDB(patch);
         reload(); // 서버가 정한 초대 코드·담당 강사를 받아 옴
       }
@@ -3072,7 +3028,7 @@ function App() {
   }, []);
   const addMember = () => {
     if (!newName.trim()) return;
-    if (quota && quota.full) alertMsg(`면제 자리 ${quota.limit}개가 다 찼어요. 구독 중인 회원만 연결할 수 있는 코드로 등록해요. 자리를 늘리려면 사람 아이콘 › 내 구독에서 등급을 올려 주세요.`);
+    if (quota && quota.full) { alertMsg(`${quota.plan ? quota.plan.name + " 등급은 " : ""}회원 ${quota.limit}명까지 연결할 수 있어요. 사람 아이콘 › 내 구독에서 등급을 올려 주세요.`); return; }
     const id = uid();
     update((x) => { x.members.push({ id, name: newName.trim(), sex: "M", birth: "1995-01-01", phone: "", goal: "maintain", restingHR: "", hrFormula: "tanaka", zoneMethod: "karvonen", activityMode: "auto", activityManual: 1.55, meals: 4, memo: "", ...(mode === "server" ? { trainerIds: [userId] } : {}) }); x.activeId = id; });
     setNewName(""); setAdding(false); setMview("detail"); setTab("member");
