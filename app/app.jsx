@@ -1,4 +1,4 @@
-/* TEMPT FIT — 회원·강사 일정 연동 + 근거 기반 운동·영양 관리
+/* Crack GYM — 회원·강사 일정 연동 + 근거 기반 운동·영양 관리
    데이터 원칙: 회원/신체/운동 기록은 한 곳에만 저장하고, 모든 탭은 같은 저장소에서 파생값을 계산한다. */
 const { useState, useMemo, useContext, createContext, useEffect, useRef } = React;
 
@@ -559,7 +559,7 @@ function AuthScreen({ sb, onLocal, onSettings }) {
   };
   return (
     <div className="app">
-      <header className="top"><div className="brand"><img src={window.TEMPT_MARK} alt="" className="mark" /><div className="wm"><b>TEMPT</b><small>FIT</small></div></div></header>
+      <header className="top"><div className="brand"><img src={window.TEMPT_MARK} alt="" className="mark" /><div className="wm"><b>Crack</b><small>GYM</small></div></div></header>
       <main className="main">
         <div className="stack authwrap">
           <Card title={tab === "in" ? "로그인" : "회원가입"} right={<Seg value={tab} options={[["in", "로그인"], ["up", "가입"]]} onChange={(v) => { setTab(v); setMsg(null); }} small />}>
@@ -1984,7 +1984,7 @@ Session     id, memberId, date, time, trainerIds[], note
   );
 }
 
-/* ═════════ TEMPT FIT: 일정 · 수업 패키지 · 요청 · 과제 · 강사 · 알림 ═════════ */
+/* ═════════ Crack GYM: 일정 · 수업 패키지 · 요청 · 과제 · 강사 · 알림 ═════════ */
 const SCH_KIND = { lesson: "수업", bonus: "보강" };
 const DAY_START = 5, DAY_END = 24; // 05시 ~ 00시
 const WD_MON = ["월", "화", "수", "목", "금", "토", "일"];
@@ -2819,7 +2819,7 @@ function TrainerLock() {
     <div className="stack lockwrap" id="trainer-lock">
       <div className="lockicon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3M12 14.5v2.5" /></svg></div>
       <Card title="강사 구독이 필요해요" tone="feature">
-        <p className="small">가입은 끝났어요. 구독하면 TEMPT FIT 강사 기능을 모두 쓸 수 있어요.</p>
+        <p className="small">가입은 끝났어요. 구독하면 Crack GYM 강사 기능을 모두 쓸 수 있어요.</p>
         <ul className="lockfeat small">
           <li>회원 등록 · 초대 코드로 회원과 연결</li>
           <li>수업 개설 · 세션 자동 소진</li>
@@ -2828,7 +2828,7 @@ function TrainerLock() {
         </ul>
         <p className="small" style={{ marginTop: 12 }}><b className="gold">등급을 고르세요</b> · 연결할 회원 수에 맞게</p>
         <PlanPicker value={plan} onChange={setPlan} />
-        <p className="small muted">회원은 TEMPT FIT을 무료로 써요. 요금은 강사 구독만 있어요.</p>
+        <p className="small muted">회원은 Crack GYM을 무료로 써요. 요금은 강사 구독만 있어요.</p>
         {srv.profile.sub_until && !s.on && <p className="small warnc">구독이 {s.label.replace("만료 · ", "")}에 끝났어요.</p>}
         <button className="btn wide" id="lock-sub" disabled={busy} onClick={ask}>{busy ? "잠시만요…" : `${planOf(plan).name} · 월 ${won(planOf(plan).price)} 구독 신청`}</button>
         {msg && <p className="small" id="lock-msg" role="status">{msg}</p>}
@@ -3132,7 +3132,7 @@ function App() {
     <Store.Provider value={ctx}>
       <div className="app">
         <header className="top">
-          <div className="brand"><img src={window.TEMPT_MARK} alt="" className="mark" /><div className="wm"><b>TEMPT</b><small>FIT</small></div></div>
+          <div className="brand"><img src={window.TEMPT_MARK} alt="" className="mark" /><div className="wm"><b>Crack</b><small>GYM</small></div></div>
           <div className="row nowrap">
             {srv && <button className="icon bell" id="bell" aria-label={unread ? `알림 ${unread}개` : "알림"} onClick={() => setBell(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.bell} /></svg>{unread > 0 && <i className="badge">{unread > 9 ? "9+" : unread}</i>}</button>}
             <button className={"icon acct" + dot} aria-label="계정과 저장 상태" onClick={() => setAcct(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d={ICONS.member} /></svg></button>
