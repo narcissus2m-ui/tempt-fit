@@ -22,8 +22,15 @@ create table if not exists public.profiles (
   sub_until date,                                 -- 회원 구독 만료일 (결제 연동 전에는 마스터가 지정)
   created_at timestamptz not null default now()
 );
--- 강사 구독 등급: basic 5명 / standard 10명 / pro 20명 / unlimited 무제한 (무제한 강사와 연결된 회원은 회원 구독료 감면)
-alter table public.profiles add column if not exists plan text check (plan in ('basic', 'standard', 'pro', 'unlimited'));
+-- 강사 구독 등급 (2026-11-26): basic 9,000원 5명 / standard 15,000원 10명 / pro 23,800원 무제한. 연결된 회원은 회원 구독료 면제
+alter table public.profiles add column if not exists plan text;
+do $$ declare c text; begin
+  for c in select conname from pg_constraint where conrelid = 'public.profiles'::regclass and contype = 'c' and pg_get_constraintdef(oid) like '%plan%' loop
+    execute format('alter table public.profiles drop constraint %I', c);
+  end loop;
+end $$;
+update public.profiles set plan = 'pro' where plan = 'unlimited';   -- 예전 무제한 등급 → 프로
+alter table public.profiles add constraint profiles_plan_check check (plan in ('basic', 'standard', 'pro'));
 
 create or replace function public.is_master() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -77,6 +84,10 @@ language sql security definer set search_path = public as $$
   update public.profiles set fav_exercises = coalesce(ids[1:10], '{}') where id = auth.uid();
 $$;
 
+-- 오늘 날짜 (한국 시간)
+create or replace function public.kst_today() returns date
+language sql stable as $$ select (now() at time zone 'Asia/Seoul')::date; $$;
+
 -- ───────── 2. 회원 · 강사 연결 ─────────
 create table if not exists public.members (
   id text primary key,
@@ -89,6 +100,8 @@ create table if not exists public.members (
   created_at timestamptz not null default now()
 );
 create index if not exists members_trainer_idx on public.members(trainer_id);
+-- 구독 회원 전용 코드: 강사 면제 자리가 다 찬 뒤 등록한 회원. 스스로 구독 중인 회원만 이 코드로 연결, 연결 전에는 일정·수업·과제·기록 못 잡음
+alter table public.members add column if not exists sub_only boolean not null default false;
 
 create table if not exists public.member_trainers (
   member_id text not null references public.members(id) on delete cascade,
@@ -143,7 +156,7 @@ create or replace function public.member_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if coalesce(current_setting('app.admin', true), '') <> '1' then
-    new.user_id := old.user_id; new.trainer_id := old.trainer_id; new.invite_code := old.invite_code; new.created_at := old.created_at;
+    new.user_id := old.user_id; new.trainer_id := old.trainer_id; new.invite_code := old.invite_code; new.created_at := old.created_at; new.sub_only := old.sub_only;
     if new.user_id = auth.uid() and not public.is_master() then
       new.data := jsonb_set(coalesce(new.data, '{}'::jsonb), '{memo}', coalesce(old.data -> 'memo', '""'::jsonb));
     end if;
@@ -164,6 +177,7 @@ begin
   if rec.id is null then raise exception 'invalid_code'; end if;
   if rec.user_id = auth.uid() then raise exception 'already_linked'; end if;
   if rec.user_id is not null then raise exception 'invalid_code'; end if;
+  if rec.sub_only and not coalesce((select sub_until >= public.kst_today() from public.profiles where id = auth.uid()), false) then raise exception 'sub_only'; end if;
   perform set_config('app.admin', '1', true);
   select id into own from public.members where user_id = auth.uid();
   if own is null then
@@ -231,6 +245,7 @@ create or replace function public.record_stamp() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
+    perform public.member_lock_check(new.member_id);
     if auth.uid() is not null then new.created_by := auth.uid(); new.created_at := now(); end if;
   elsif coalesce(current_setting('app.admin', true), '') <> '1' then
     new.member_id := old.member_id; new.created_by := old.created_by; new.created_at := old.created_at;
@@ -324,6 +339,7 @@ create or replace function public.owner_stamp() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
+    perform public.member_lock_check(new.member_id);
     if auth.uid() is not null and not public.is_master() then new.trainer_id := auth.uid(); end if;
     new.created_at := now();
   else new.trainer_id := old.trainer_id; new.member_id := old.member_id; new.created_at := old.created_at; end if;
@@ -366,6 +382,7 @@ create or replace function public.schedule_stamp() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
+    perform public.member_lock_check(new.member_id);
     if auth.uid() is not null and not public.is_master() then new.trainer_id := auth.uid(); end if;
     new.created_at := now();
   else
@@ -451,6 +468,7 @@ create or replace function public.assignment_stamp() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'INSERT' then
+    perform public.member_lock_check(new.member_id);
     if auth.uid() is not null and not public.is_master() then new.trainer_id := auth.uid(); end if;
     new.created_at := now(); new.done_at := null; new.photos := '[]'::jsonb; new.member_note := '';
   elsif coalesce(current_setting('app.admin', true), '') <> '1' then
@@ -612,40 +630,77 @@ begin
   update public.profiles set sub_until = until, plan = coalesce(p_plan, plan) where id = uid;
 end $$;
 
--- 강사 등급별 회원 수 한도 (null = 무제한)
+-- 강사 등급별 면제 자리 수 (null = 무제한)
 create or replace function public.plan_limit(p text) returns int
 language sql immutable as $$
-  select case p when 'basic' then 5 when 'standard' then 10 when 'pro' then 20 when 'unlimited' then null else 0 end;
+  select case p when 'basic' then 5 when 'standard' then 10 when 'pro' then null else 0 end;
 $$;
--- 강사가 회원을 새로 등록할 때 등급 한도 확인 (마스터는 제한 없음)
+-- 강사의 면제 자리: 연결 회원 중 스스로 구독 중이 아닌 회원 + 코드 입력 전 대기 회원(구독 회원 전용 코드 제외).
+-- 먼저 연결된 순서로 한도 안이면 in_slot. 스스로 구독 중인 회원은 그 기간 동안 자리에 안 셈
+create or replace function public.trainer_slots(tid uuid) returns table(member_id text, in_slot boolean)
+language sql stable security definer set search_path = public as $$
+  with lim as (select case when p.is_master then null else public.plan_limit(p.plan) end as n from public.profiles p where p.id = tid)
+  select x.member_id, ((select n from lim) is null or x.rn <= (select n from lim))
+  from (select t.member_id, row_number() over (order by t.created_at, t.member_id) as rn
+        from public.member_trainers t join public.members m on m.id = t.member_id left join public.profiles u on u.id = m.user_id
+        where t.trainer_id = tid and (m.user_id is not null or not m.sub_only)
+          and not (m.user_id is not null and coalesce(u.sub_until >= public.kst_today(), false))) x;
+$$;
+-- 강사가 회원을 새로 등록할 때: 면제 자리가 다 찼으면 구독 회원 전용 코드로 (마스터·프로는 제한 없음)
+drop trigger if exists members_limit on public.members;
 create or replace function public.member_limit_check() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare pr public.profiles; lim int;
 begin
+  new.sub_only := false;
   if new.trainer_id is null or new.user_id is not null then return new; end if;
   select * into pr from public.profiles where id = new.trainer_id;
   if pr.is_master then return new; end if;
   lim := public.plan_limit(pr.plan);
-  if lim is not null and (select count(*) from public.member_trainers t where t.trainer_id = new.trainer_id) >= lim then
-    raise exception 'member_limit';
-  end if;
+  if lim is not null and (select count(*) from public.trainer_slots(new.trainer_id)) >= lim then new.sub_only := true; end if;
   return new;
 end $$;
-drop trigger if exists members_limit on public.members;
 create trigger members_limit before insert on public.members for each row execute function public.member_limit_check();
+-- 구독 회원 전용 코드로 등록만 된(아직 연결 안 된) 회원에게는 일정·수업·과제·기록을 만들 수 없음
+create or replace function public.member_lock_check(mid text) returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if exists (select 1 from public.members m where m.id = mid and m.user_id is null and m.sub_only) then raise exception 'sub_only_pending'; end if;
+end $$;
 
--- 회원 구독료 감면: 구독 중인 무제한 등급 강사와 연결된 동안 (결제 붙일 때 사용)
+-- 회원 구독료 면제 상태 (결제 붙일 때 사용): waived 지금 면제 / after 스스로 구독 중, 그 기간이 끝나면 면제 / none 면제 아님
+create or replace function public.fee_status(uid uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare mid text; own boolean; r record; aft uuid;
+begin
+  if uid is null or not (uid = auth.uid() or public.is_master()) then return jsonb_build_object('state', 'none'); end if;
+  select m.id into mid from public.members m where m.user_id = uid;
+  if mid is null then return jsonb_build_object('state', 'none'); end if;
+  own := coalesce((select sub_until >= public.kst_today() from public.profiles where id = uid), false);
+  for r in select p.id, p.is_master, p.plan from public.member_trainers t join public.profiles p on p.id = t.trainer_id
+           where t.member_id = mid and (p.is_master or p.sub_until >= public.kst_today()) order by t.created_at loop
+    if r.is_master or r.plan = 'pro' then
+      if not own then return jsonb_build_object('state', 'waived', 'trainer', r.id); end if;
+      aft := coalesce(aft, r.id);
+    elsif not own then
+      if exists (select 1 from public.trainer_slots(r.id) s where s.member_id = mid and s.in_slot) then return jsonb_build_object('state', 'waived', 'trainer', r.id); end if;
+    elsif (select count(*) from public.trainer_slots(r.id)) < coalesce(public.plan_limit(r.plan), 0) then
+      aft := coalesce(aft, r.id);
+    end if;
+  end loop;
+  if aft is not null then return jsonb_build_object('state', 'after', 'trainer', aft); end if;
+  return jsonb_build_object('state', 'none');
+end $$;
 create or replace function public.member_fee_waived(uid uuid) returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.members m join public.member_trainers t on t.member_id = m.id join public.profiles p on p.id = t.trainer_id
-    where m.user_id = uid and (uid = auth.uid() or public.is_master()) and p.plan = 'unlimited' and p.sub_until >= (now() at time zone 'Asia/Seoul')::date);
+  select public.fee_status(uid) ->> 'state' in ('waived', 'after');
 $$;
 
 -- 구독 신청 (결제 연동 전): 마스터들에게 알림. 하루 한 번만
 drop function if exists public.request_subscription();
 create or replace function public.request_subscription(p_plan text default null) returns text
 language plpgsql security definer set search_path = public as $$
-declare me public.profiles; pname text := case p_plan when 'basic' then '베이직' when 'standard' then '스탠다드' when 'pro' then '프로' when 'unlimited' then '무제한' else null end;
+declare me public.profiles; pname text := case p_plan when 'basic' then '베이직' when 'standard' then '스탠다드' when 'pro' then '프로' else null end;
 begin
   select * into me from public.profiles where id = auth.uid();
   if me.id is null then raise exception 'not_signed_in'; end if;
@@ -752,11 +807,11 @@ create policy notifications_delete on public.notifications for delete to authent
 -- 함수 실행 권한: 로그인한 사람만
 do $$ declare f text; begin
   foreach f in array array['claim_member(text)', 'unlink_trainer(text, uuid)', 'set_fav_exercises(text[])', 'decide_request(uuid, boolean, timestamptz, integer)',
-    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date, text)', 'request_subscription(text)', 'member_fee_waived(uuid)'] loop
+    'submit_assignment(text, jsonb, text)', 'bulk_schedule(jsonb)', 'read_notifications(bigint)', 'set_subscription(uuid, date, text)', 'request_subscription(text)', 'member_fee_waived(uuid)', 'fee_status(uuid)'] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
-  foreach f in array array['notify_user(uuid, text, text, text, text)', 'notify_member(text, text, text, text, text)', 'notify_trainers(text, text, text, text, text)'] loop
+  foreach f in array array['trainer_slots(uuid)', 'member_lock_check(text)', 'notify_user(uuid, text, text, text, text)', 'notify_member(text, text, text, text, text)', 'notify_trainers(text, text, text, text, text)'] loop
     execute format('revoke all on function public.%s from public, anon, authenticated', f);
   end loop;
 end $$;
